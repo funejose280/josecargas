@@ -147,16 +147,86 @@
                 linear-gradient(to right, rgba(157, 78, 221, 0.05) 1px, transparent 1px),
                 linear-gradient(to bottom, rgba(157, 78, 221, 0.05) 1px, transparent 1px);
         }
+
+
+        /* SOCIAL HERO PREMIUM */
+        .social-hero {
+            position: relative; isolation: isolate; overflow: hidden;
+            background: radial-gradient(ellipse at 15% 35%, rgba(112,9,183,.30), transparent 42%),
+                        radial-gradient(ellipse at 90% 20%, rgba(247,37,133,.18), transparent 38%),
+                        linear-gradient(120deg,#05040a 0%,#0b0618 52%,#05040a 100%);
+        }
+        .social-hero:before { content:""; position:absolute; inset:0; z-index:-1; opacity:.26;
+            background-image: linear-gradient(rgba(157,78,221,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(157,78,221,.12) 1px,transparent 1px); background-size:34px 34px;
+            mask-image:linear-gradient(to bottom,black,transparent); }
+        .social-card { position:relative; isolation:isolate; display:flex; align-items:center; gap:clamp(14px,2.5vw,30px); min-height:172px; padding:22px clamp(16px,3vw,32px); overflow:hidden; border-radius:28px; text-decoration:none; color:white; background:linear-gradient(120deg,rgba(8,14,32,.98),rgba(14,7,29,.96)); transition:transform .28s ease,box-shadow .28s ease; }
+        .social-card:before { content:""; position:absolute; inset:0; padding:2px; border-radius:inherit; background:linear-gradient(110deg,#06eaff,#345dff,#f72585); -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none; }
+        .social-card.instagram:before { background:linear-gradient(115deg,#8b2cff,#f72585,#ffb347); }
+        .social-card.whatsapp:before { background:linear-gradient(115deg,#075e54,#25d366,#a3ffcb); }
+        .social-card:after { content:""; position:absolute; width:190px;height:190px;right:-50px;top:-50px;border-radius:50%;background:rgba(76,201,240,.11);filter:blur(3px);z-index:-1; }
+        .social-card.instagram:after { background:rgba(247,37,133,.13); }
+        .social-card.whatsapp:after { background:rgba(37,211,102,.15); }
+        .social-card:hover { transform:translateY(-5px); box-shadow:0 16px 42px rgba(112,9,183,.22),0 0 26px rgba(76,201,240,.12); }
+        .social-icon-wrap { width:94px;height:94px;flex:0 0 94px;display:grid;place-items:center;border-radius:24px;background:linear-gradient(145deg,#171725,#05050b);box-shadow:0 0 0 1px rgba(255,255,255,.1),0 10px 25px rgba(0,0,0,.4);font-size:48px; }
+        .social-card.tiktok .social-icon-wrap { color:#fff;text-shadow:3px 3px 0 #fe2c55,-3px -2px 0 #25f4ee; }
+        .social-card.instagram .social-icon-wrap { color:white;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045); }
+        .social-card.whatsapp .social-icon-wrap { color:#fff;background:linear-gradient(145deg,#128c7e,#075e54); text-shadow:0 0 18px rgba(37,211,102,.45); }
+        .social-eyebrow { font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:#d8c7f5;font-weight:700; }
+        .social-title { font-family:'Orbitron',sans-serif;font-size:clamp(18px,2.1vw,28px);font-weight:900;line-height:1.2;letter-spacing:.02em; }
+        .social-handle { color:#cbd0e5;font-size:17px;font-weight:600;margin-top:7px; }
+        .social-arrow { margin-left:auto; flex:0 0 42px;width:42px;height:42px;border:1px solid #22d3ee;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:18px;transition:transform .25s ease; }
+        .instagram .social-arrow { border-color:#d946ef; }
+        .whatsapp .social-arrow { border-color:#25d366; color:#25d366; }
+        .social-card:hover .social-arrow { transform:translateX(4px); }
+        .social-benefits { border-top:1px solid rgba(157,78,221,.24); border-bottom:1px solid rgba(157,78,221,.24); }
+        @media(max-width:640px) { .social-card{min-height:132px;padding:16px;gap:14px;border-radius:22px}.social-icon-wrap{width:64px;height:64px;flex-basis:64px;border-radius:18px;font-size:32px}.social-title{font-size:17px}.social-handle{font-size:14px}.social-arrow{width:34px;height:34px;flex-basis:34px;font-size:14px}.social-eyebrow{font-size:9px;letter-spacing:.2em} }
+        @media(prefers-reduced-motion:reduce){.social-card,.social-arrow{transition:none}}
+
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-brand-purple selection:text-white pb-24 md:pb-12 bg-grid">
+
+    <!-- BIENVENIDA INICIAL -->
+    <div id="welcome-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <div class="relative w-full max-w-lg overflow-hidden rounded-3xl border border-brand-purple/70 bg-gradient-to-br from-[#130b25] via-[#090711] to-[#18091c] p-7 sm:p-10 text-center shadow-[0_0_70px_rgba(157,78,221,.35)]">
+            <div class="absolute -top-24 -right-20 h-56 w-56 rounded-full bg-brand-magenta/20 blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -left-20 h-56 w-56 rounded-full bg-brand-purple/25 blur-3xl pointer-events-none"></div>
+            <div class="relative mx-auto mb-5 h-24 w-24 rounded-2xl border-2 border-brand-purple p-1 shadow-[0_0_30px_rgba(157,78,221,.4)]">
+                <img src="./jose-recargas-banner.png" alt="José Recargas" class="h-full w-full rounded-xl object-cover" />
+            </div>
+            <p class="relative text-xs sm:text-sm font-bold uppercase tracking-[.3em] text-brand-neon">¡Bienvenido!</p>
+            <h2 id="welcome-title" class="relative mt-3 font-orbitron text-3xl sm:text-4xl font-black leading-tight text-white">JOSÉ <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">RECARGAS</span></h2>
+            <p class="relative mt-4 text-lg sm:text-xl text-gray-200">Tu lugar de confianza para tus recargas favoritas.</p>
+            <p class="relative mt-2 text-sm sm:text-base text-gray-400">Gracias por elegirnos. ¡Preparáte para disfrutar!</p>
+            <button id="continue-to-page" type="button" class="relative mt-7 w-full rounded-xl border border-brand-magenta/70 bg-gradient-to-r from-brand-purple via-[#8b2cff] to-brand-magenta px-6 py-4 font-orbitron text-sm sm:text-base font-extrabold uppercase tracking-wider text-white shadow-[0_0_25px_rgba(157,78,221,.35)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_35px_rgba(247,37,133,.4)] focus:outline-none focus:ring-2 focus:ring-brand-neon focus:ring-offset-2 focus:ring-offset-[#090711]">
+                <i class="fa-solid fa-bolt mr-2"></i> Continuar a la página
+            </button>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var welcome = document.getElementById('welcome-screen');
+            var continueButton = document.getElementById('continue-to-page');
+            if (!welcome || !continueButton) return;
+            document.body.style.overflow = 'hidden';
+            continueButton.addEventListener('click', function () {
+                welcome.style.transition = 'opacity 250ms ease';
+                welcome.style.opacity = '0';
+                window.setTimeout(function () {
+                    welcome.remove();
+                    document.body.style.overflow = '';
+                }, 260);
+            });
+        })();
+    </script>
+
 
     <!-- HEADER / NAVIGATION -->
     <header class="sticky top-0 z-40 bg-brand-dark/85 backdrop-blur-md border-b border-brand-border/80">
         <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-purple via-brand-magenta to-brand-cyan flex items-center justify-center shadow-lg glow-purple animate-pulse">
-                    <i class="fa-solid text-xl text-white fa-bolt"></i>
+                <div class="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-brand-purple/60 shadow-lg glow-purple">
+                    <img src="./jose-recargas-banner.png" alt="Logo de José Recargas" class="w-full h-full object-cover object-center" />
                 </div>
                 <div>
                     <h1 class="font-orbitron text-xl md:text-2xl font-black tracking-wider text-white">
@@ -175,21 +245,54 @@
         </div>
     </header>
 
-    <!-- BANNER HERO -->
-    <div class="relative overflow-hidden border-b border-brand-border bg-brand-dark">
-        <div class="absolute inset-0 banner-bg"></div>
-        <div class="max-w-6xl mx-auto px-4 py-8 md:py-12 relative z-10 text-center animate-fade-in">
-            <span class="inline-block bg-brand-purple/20 border border-brand-neon/40 text-brand-neon text-xs uppercase font-bold tracking-widest px-4 py-1.5 rounded-full mb-3 glow-purple">
-                ⚡ Entrega Inmediata & Garantizada
-            </span>
-            <h2 class="font-orbitron text-3xl md:text-5xl font-extrabold text-white mb-3 text-glow-purple tracking-wide">
-                RECARGA DIAMANTES Y PASES
-            </h2>
-            <p class="text-gray-300 max-w-xl mx-auto text-sm md:text-base">
-                Ingresa tu ID y Nombre de cuenta, selecciona tu recarga deseada y confirma tu pedido instantáneamente por WhatsApp.
-            </p>
+
+
+    <!-- SOCIAL MEDIA FEATURE / PREMIUM -->
+    <section class="social-hero border-b border-brand-purple/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-10">
+            <div class="grid grid-cols-1 lg:grid-cols-[1.05fr_.95fr] gap-7 lg:gap-10 items-center mb-8 md:mb-10">
+                <div class="flex flex-col sm:flex-row items-center sm:items-center gap-5 md:gap-7 text-center sm:text-left">
+                    <div class="relative w-36 h-36 md:w-44 md:h-44 shrink-0 rounded-full p-[3px] bg-gradient-to-br from-brand-cyan via-brand-magenta to-brand-purple shadow-[0_0_32px_rgba(157,78,221,.45)]">
+                        <div class="w-full h-full rounded-full overflow-hidden border-4 border-brand-black bg-black"><img src="./jose-recargas-banner.png" alt="José Recargas" class="w-full h-full object-cover object-center" /></div>
+                    </div>
+                    <div>
+                        <p class="font-orbitron font-black text-4xl md:text-5xl leading-tight tracking-tight text-white">JOSÉ</p>
+                        <p class="font-orbitron font-black text-3xl md:text-4xl leading-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-neon via-brand-magenta to-brand-purple">RECARGAS</p>
+                        <div class="mt-3 inline-flex items-center gap-2 rounded-full border border-brand-purple/50 bg-brand-purple/10 px-3 py-1.5 text-xs font-bold tracking-widest text-brand-neon uppercase"><i class="fa-solid fa-crown"></i> Comunidad oficial</div>
+                    </div>
+                </div>
+                <div class="lg:border-l lg:border-brand-magenta/70 lg:pl-8 text-center lg:text-left">
+                    <p class="font-orbitron font-bold text-sm md:text-base tracking-[.22em] text-white">SEGUINOS EN</p>
+                    <h2 class="font-orbitron font-black text-3xl md:text-4xl mt-1 text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta text-glow-purple">MIS REDES</h2>
+                    <p class="text-gray-300 text-base md:text-lg mt-3 max-w-xl mx-auto lg:mx-0">Enterate de las novedades, promociones, sorteos y contenido de José Recargas.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6">
+                <a class="social-card tiktok" href="https://www.tiktok.com/@jose.recargas" target="_blank" rel="noopener noreferrer" aria-label="Abrir TikTok de José Recargas en una nueva pestaña">
+                    <span class="social-icon-wrap" aria-hidden="true"><i class="fa-brands fa-tiktok"></i></span>
+                    <span class="min-w-0"><span class="social-eyebrow block">Seguime en</span><span class="social-title block mt-1">TIKTOK</span><span class="social-handle block">@jose.recargas</span></span>
+                    <span class="social-arrow" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <a class="social-card instagram" href="https://www.instagram.com/jose.recargas/" target="_blank" rel="noopener noreferrer" aria-label="Abrir Instagram de José Recargas en una nueva pestaña">
+                    <span class="social-icon-wrap" aria-hidden="true"><i class="fa-brands fa-instagram"></i></span>
+                    <span class="min-w-0"><span class="social-eyebrow block">Seguime en</span><span class="social-title block mt-1">INSTAGRAM</span><span class="social-handle block">@jose.recargas</span></span>
+                    <span class="social-arrow" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <a class="social-card whatsapp" href="https://whatsapp.com/channel/0029Vb8x6PL6rsQyCvCu0H25" target="_blank" rel="noopener noreferrer" aria-label="Abrir el canal de WhatsApp de José Recargas en una nueva pestaña">
+                    <span class="social-icon-wrap" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></span>
+                    <span class="min-w-0"><span class="social-eyebrow block">Sumate a</span><span class="social-title block mt-1">WHATSAPP</span><span class="social-handle block">Canal oficial y novedades</span></span>
+                    <span class="social-arrow" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+            </div>
+            <div class="social-benefits mt-7 md:mt-8 py-4 flex flex-wrap justify-center gap-x-7 md:gap-x-12 gap-y-3 text-sm md:text-base text-gray-200">
+                <span class="inline-flex items-center gap-2"><i class="fa-solid fa-shield-halved text-brand-cyan text-lg"></i> Contenido exclusivo</span>
+                <span class="hidden sm:inline text-brand-magenta/80">│</span>
+                <span class="inline-flex items-center gap-2"><i class="fa-solid fa-bolt text-brand-magenta text-lg"></i> Novedades y sorteos</span>
+                <span class="hidden sm:inline text-brand-magenta/80">│</span>
+                <span class="inline-flex items-center gap-2"><i class="fa-regular fa-star text-brand-neon text-lg"></i> ¡No te lo pierdas!</span>
+            </div>
         </div>
-    </div>
+    </section>
 
     <!-- MAIN CONTAINER -->
     <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8">
