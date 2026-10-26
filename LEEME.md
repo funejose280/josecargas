@@ -29,3 +29,15 @@ Probá `https://TU-SITIO.vercel.app/api/verify-id?uid=ID_DE_PRUEBA` usando un ID
 - `requirements.txt` y `pyproject.toml`: dependencias y configuración.
 
 La clave debe configurarse como variable de entorno en el hosting; no se incluye en este archivo comprimido.
+
+## Seguimiento de pedidos compartido
+
+Para que los clientes puedan ver el estado desde cualquier teléfono o PC:
+
+1. En Supabase abrí **SQL Editor → New query**.
+2. Copiá y ejecutá todo el contenido de `PEDIDOS_SUPABASE.sql`.
+3. Los nuevos pedidos se guardarán con estado `pendiente` y un código `JR-XXXXXX`.
+4. Para actualizar un pedido, abrí **Table Editor → pedidos**, buscá el código y cambiá `status` a `proceso`, `entregado` o `cancelado`. El campo `updated_at` se actualiza automáticamente.
+5. El cliente entra a “Estado del pedido”, ingresa su código y consulta el estado actualizado.
+
+Estados admitidos: `pendiente`, `proceso`, `entregado`, `completado` y `cancelado`. En la web, `completado` también se muestra como “Entregado”. No habilites políticas públicas de lectura o actualización directa sobre la tabla `pedidos`.

@@ -805,11 +805,12 @@
 
 
     <!-- CHECKOUT: ID Y CONFIRMACIÓN FINAL (se muestra después de continuar) -->
-    <section id="checkout-step" class="hidden max-w-4xl mx-auto px-4 py-8 w-full">
-      <div class="bg-brand-card p-5 md:p-7 rounded-2xl border border-brand-border/80 shadow-2xl">
+    <section id="checkout-step" class="hidden fixed inset-0 z-[100] w-full h-[100dvh] overflow-y-auto bg-black/80 backdrop-blur-md px-3 py-4 sm:px-6 sm:py-8" role="dialog" aria-modal="true" aria-labelledby="checkout-title" onclick="if(event.target===this) backToProducts()">
+      <div class="relative bg-brand-card p-4 sm:p-6 md:p-7 rounded-2xl border border-brand-border/80 shadow-2xl w-full max-w-4xl mx-auto my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto">
+        <button type="button" onclick="backToProducts()" aria-label="Cerrar ventana de compra" class="sticky top-0 ml-auto -mr-1 -mt-1 mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-brand-border bg-brand-black text-gray-200 hover:bg-brand-purple transition"><i class="fa-solid fa-xmark text-lg"></i></button>
         <div class="flex items-center gap-3 mb-2">
           <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-tr from-brand-purple to-brand-magenta text-white font-orbitron font-bold">2</span>
-          <h2 class="font-orbitron font-bold text-xl text-white">REVISÁ TU PEDIDO</h2>
+          <h2 id="checkout-title" class="font-orbitron font-bold text-xl text-white">REVISÁ TU PEDIDO</h2>
         </div>
         <p class="text-sm text-gray-400 mb-5">Verificá tu ID de jugador y revisá los productos antes de finalizar la compra.</p>
 
@@ -852,7 +853,7 @@
       <h2 class="font-orbitron text-xl md:text-2xl font-black text-white">📦 ESTADO DEL PEDIDO</h2><p class="text-sm text-gray-400 mt-2">Ingresá el código que te aparece al preparar tu pedido.</p>
       <div class="flex flex-col sm:flex-row gap-3 mt-5"><input id="tracking-code" class="flex-1 rounded-xl bg-brand-black border border-brand-border px-4 py-3 text-white" placeholder="Ej.: JR-ABC123"><button type="button" onclick="trackOrder()" class="rounded-xl bg-brand-purple px-5 py-3 font-bold text-white">Consultar</button></div>
       <div id="tracking-result" class="hidden mt-4 rounded-xl border border-brand-border p-4 text-sm text-gray-200" aria-live="polite"></div>
-      <p class="text-xs text-gray-500 mt-3">Por ahora, el seguimiento se guarda en este navegador. Para consultar estados actualizados desde cualquier dispositivo hace falta conectar una base de datos compartida.</p>
+      <p class="text-xs text-gray-500 mt-3">Consultá desde cualquier dispositivo con tu código de pedido. El estado se actualiza cuando José Recargas lo modifica en el panel de pedidos de Supabase.</p>
     </div></section>
 
     <!-- RESEÑAS DE CLIENTES -->
@@ -1054,13 +1055,26 @@
           else { appliedCoupon = { code, percent: COUPONS[code] }; status.textContent = `¡Cupón ${code} aplicado: ${COUPONS[code]}% de descuento!`; status.className = 'text-xs text-emerald-300 mt-2'; }
           updateSummary();
         }
-        function trackOrder() {
+        async function trackOrder() {
           const code = document.getElementById('tracking-code').value.trim().toUpperCase();
           const el = document.getElementById('tracking-result'); el.classList.remove('hidden');
+          if (!/^JR-[A-Z0-9]{6}$/.test(code)) { el.textContent = 'Ingresá un código válido con el formato JR-ABC123.'; return; }
+          el.textContent = 'Consultando el estado del pedido…';
+          if (window.JROrders && window.JROrders.track) {
+            const result = await window.JROrders.track(code);
+            if (result && result.error) { el.textContent = result.error; return; }
+            if (result) {
+              const labels = { pendiente: 'Pendiente', proceso: 'En proceso', entregado: 'Entregado', completado: 'Entregado', cancelado: 'Cancelado' };
+              const label = labels[result.status] || 'Pendiente';
+              const color = ['entregado','completado'].includes(result.status) ? 'text-emerald-300' : result.status === 'cancelado' ? 'text-red-300' : 'text-amber-300';
+              el.innerHTML = `<p class="font-bold text-white">Pedido ${escapeHtml(code)}</p><p class="mt-2">Estado: <strong class="${color}">${escapeHtml(label)}</strong></p><p class="mt-1">Total: $${Number(result.total).toLocaleString('es-AR')} ARS</p><p class="mt-1 text-xs text-gray-400">Última actualización: ${result.updated_at ? new Date(result.updated_at).toLocaleString('es-AR') : '—'}</p>`;
+              return;
+            }
+          }
           let orders = {}; try { orders = JSON.parse(localStorage.getItem('joseRecargasOrders') || '{}'); } catch(e) {}
           const order = orders[code];
-          if (!code || !order) { el.textContent = 'No encontramos ese pedido guardado en este navegador. Verificá el código o consultá por WhatsApp.'; return; }
-          const labels = { pendiente: 'Pendiente', proceso: 'En proceso', completado: 'Completado' };
+          if (!order) { el.textContent = 'No encontramos ese pedido. Si la base compartida aún no está configurada, solo se pueden consultar pedidos en el navegador donde se crearon. Contactanos por WhatsApp con tu código.'; return; }
+          const labels = { pendiente: 'Pendiente', proceso: 'En proceso', entregado: 'Entregado', completado: 'Entregado', cancelado: 'Cancelado' };
           el.textContent = `Pedido ${order.id} — Estado: ${labels[order.status] || 'Pendiente'} — Total: $${Number(order.total).toLocaleString('es-AR')} ARS`;
         }
 
@@ -1309,17 +1323,19 @@
                 document.getElementById('error-msg').classList.remove('hidden');
                 return;
             }
-            document.getElementById('checkout-step').classList.remove('hidden');
-            document.getElementById('checkout-step').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const modal = document.getElementById('checkout-step');
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
             updateSummary();
+            window.setTimeout(() => document.getElementById('player-id')?.focus({ preventScroll: true }), 100);
         }
 
         function backToProducts() {
             document.getElementById('checkout-step').classList.add('hidden');
-            document.querySelector('main').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.body.classList.remove('overflow-hidden');
         }
 
-        function sendOrderWhatsApp() {
+        async function sendOrderWhatsApp() {
             if (!cart.length || playerId.length < 6 || !verifiedPlayer || verifiedPlayer.uid !== playerId) {
                 const err = document.getElementById('checkout-error');
                 if (err) err.classList.remove('hidden');
@@ -1339,8 +1355,21 @@
                 (appliedCoupon ? `🏷️ *Cupón:* ${appliedCoupon.code} (${appliedCoupon.percent}%)\n` : '') +
                 (discount ? `Subtotal: $${subtotal.toLocaleString('es-AR')} ARS\nDescuento: -$${discount.toLocaleString('es-AR')} ARS\n` : '') +
                 `💰 *TOTAL A PAGAR: $${total.toLocaleString('es-AR')} ARS*\n\nQuedo a la espera de los datos para realizar el pago. ¡Muchas gracias!`;
-            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
+            // Abrimos una pestaña de inmediato para evitar que el navegador bloquee WhatsApp mientras guardamos la orden.
+            const whatsappTab = window.open('about:blank', '_blank');
+            const orderPayload = { id: orderId, status: 'pendiente', total, player_id: playerId, player_name: verifiedPlayer?.name || null, products: cart.map(p => ({ name: p.name, quantity: p.quantity || 1, price: lineTotal(p) })), created_at: new Date().toISOString() };
+            let sharedSaved = false;
+            try { if (window.JROrders && window.JROrders.create) sharedSaved = await window.JROrders.create(orderPayload); } catch (e) { console.error('No se pudo guardar el pedido compartido:', e); }
+            const destination = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+            if (whatsappTab) whatsappTab.location.href = destination;
+            else window.location.href = destination;
+            if (!sharedSaved) console.warn('Pedido guardado solo localmente; configurá la tabla de pedidos en Supabase para seguimiento entre dispositivos.');
+            const trackingInput = document.getElementById('tracking-code'); if (trackingInput) trackingInput.value = orderId;
         }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && !document.getElementById('checkout-step')?.classList.contains('hidden')) backToProducts();
+        });
 
         window.onload = function() {
             renderDiamondPackages();
@@ -1363,6 +1392,34 @@
         const $ = (id) => document.getElementById(id);
         const ready = () => window.supabase && SUPABASE_URL.startsWith('https://') &&
             !SUPABASE_URL.includes('PEGAR_') && !SUPABASE_ANON_KEY.includes('PEGAR_');
+        // Pedidos compartidos: el cliente solo puede crear una orden y consultar por código exacto.
+        // La modificación del estado se realiza desde el panel de Supabase por el propietario.
+        let orderClient = null;
+        function getOrderClient() {
+            if (!ready()) return null;
+            if (!orderClient) orderClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            return orderClient;
+        }
+        window.JROrders = {
+            async create(order) {
+                const client = getOrderClient(); if (!client) return false;
+                const { error } = await client.from('pedidos').insert({
+                    code: order.id, status: 'pendiente', total: order.total,
+                    player_id: order.player_id, player_name: order.player_name,
+                    products: order.products
+                });
+                if (error) { console.error('Supabase pedidos:', error.message); return false; }
+                return true;
+            },
+            async track(code) {
+                const client = getOrderClient();
+                if (!client) return { error: 'El seguimiento compartido no está disponible. Contactanos por WhatsApp.' };
+                const { data, error } = await client.rpc('consultar_estado_pedido', { codigo_pedido: code });
+                if (error) { console.error('Supabase seguimiento:', error.message); return { error: 'No se pudo consultar el pedido. Es posible que falte ejecutar el SQL de configuración incluido en el ZIP.' }; }
+                const row = Array.isArray(data) ? data[0] : data;
+                return row || { error: 'No encontramos ese pedido. Revisá el código e intentá nuevamente.' };
+            }
+        };
 
         function status(message, kind='info') {
             const el = $('review-status');
