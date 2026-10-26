@@ -63,12 +63,20 @@ def lookup_player(uid):
             if basic and basic.get("nickname"):
                 info.update(found=True, region=basic.get("region"))
                 attempts.append(info)
-                return {
+                player = {
                     "name": basic["nickname"],
                     "level": basic.get("level"),
                     "region": str(basic.get("region") or "").upper(),
                     "server": server,
-                }, attempts
+                }
+                # Si la respuesta del juego/proveedor ya incluye una URL de avatar,
+                # la exponemos. No se puede convertir un avatarId en foto sin un catálogo oficial.
+                for key in ("profile_image", "profileImage", "avatar_url", "avatarUrl", "image_url", "imageUrl", "photo"):
+                    value = basic.get(key)
+                    if isinstance(value, str) and value.startswith("https://"):
+                        player["profile_image"] = value
+                        break
+                return player, attempts
             info.update(found=False, note="sin datos para ese ID en este servidor",
                         keys=sorted(show.keys()) if isinstance(show, dict) else str(type(show)))
         except Exception as e:  # noqa: BLE001

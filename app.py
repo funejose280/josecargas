@@ -100,6 +100,12 @@ def _external_ffinfo_lookup(uid):
     result = {"success": True, "uid": returned_uid, "name": str(name), "region": region}
     if level is not None:
         result["level"] = level
+    # Algunos proveedores devuelven una URL pública para el avatar del jugador.
+    # Solo se aceptan URLs HTTPS; no se construyen URLs a partir del ID de avatar.
+    image_keys = ("profile_image", "profileImage", "avatar_url", "avatarUrl", "avatar", "headPic", "head_pic", "portrait", "image_url", "imageUrl", "photo")
+    image_url = next((basic.get(k) or data.get(k) for k in image_keys if isinstance(basic.get(k) or data.get(k), str) and str(basic.get(k) or data.get(k)).startswith("https://")), None)
+    if image_url:
+        result["profile_image"] = image_url
     return result
 
 def process(query_string, ip=""):
@@ -160,6 +166,8 @@ def process(query_string, ip=""):
         return 200, {"success": False, "code": "NOT_LATAM", "message": "Ese ID no pertenece al servidor de Latinoamérica. Solo hacemos recargas para cuentas LATAM."}
 
     body = {"success": True, "uid": uid, "name": player["name"], "level": player["level"], "region": player["region"]}
+    if player.get("profile_image"):
+        body["profile_image"] = player["profile_image"]
     _cache[uid] = (time.time(), body)
     return 200, body
 
