@@ -48,3 +48,7 @@ Estados admitidos: `pendiente`, `proceso`, `entregado`, `completado` y `cancelad
 La página incluye el botón **Historial de compras**. El cliente debe verificar primero su ID de Free Fire en el verificador principal y después tocar **Ver mi historial**. La web consulta hasta 50 pedidos de ese ID mediante la función `consultar_historial_pedidos`.
 
 Si ya habías ejecutado el SQL anterior, volvé a ejecutar el bloque final de `PEDIDOS_SUPABASE.sql` que crea `consultar_historial_pedidos`; no borra pedidos existentes. Para una protección fuerte de privacidad, la consulta debe asociarse a una sesión autenticada del cliente en el servidor: la verificación visual del ID en el navegador por sí sola no es un control de acceso del lado de la base de datos.
+
+## Panel privado de administración de pedidos
+
+Se agregó `public/admin.html` para buscar pedidos y cambiar su estado desde una interfaz. Antes de usarlo, seguí todos los pasos de `CONFIGURAR_PANEL_ADMIN.md`: crear un usuario en Supabase Auth, cambiar el correo de ejemplo en `ADMIN_PEDIDOS_SUPABASE.sql` y ejecutar ese SQL. El panel no funcionará hasta configurar esos permisos. No uses una clave `service_role` en el navegador.
