@@ -1571,11 +1571,23 @@
             if (event.key === 'Escape' && !document.getElementById('checkout-step')?.classList.contains('hidden')) backToProducts();
         });
 
-        window.onload = function() {
+        window.onload = async function() {
+            // Carga opcional del catálogo administrable; si la tabla aún no está creada, usa los precios originales.
+            try {
+                const catClient = window.supabase.createClient('https://ydzqoobdyeyurwtnrbvx.supabase.co', 'sb_publishable_2BDR3kdnh-k4G3cfbiJ_Rg_gq3qAcYm');
+                const { data: catalog } = await catClient.from('product_catalog').select('id,name,price,active,available');
+                if (Array.isArray(catalog) && catalog.length) {
+                    const byId = new Map(catalog.map(p => [p.id, p]));
+                    [...diamondPackages, ...cardPackages].forEach(pkg => { const p = byId.get(pkg.id); if (p) { pkg.price = Number(p.price); pkg.adminActive = p.active; pkg.adminAvailable = p.available; } });
+                    ['frag','box'].forEach(id => { const p = byId.get(id); if (p) { if (id === 'frag') evoConfig.frag.unitPrice = Number(p.price); else evoConfig.box.unitPrice = Number(p.price); evoConfig[id].adminActive = p.active; evoConfig[id].adminAvailable = p.available; } });
+                }
+            } catch (e) { console.warn('Catálogo administrable no disponible; se mantienen los precios base.', e); }
             renderDiamondPackages();
             renderCardPackages();
             recalculateEvoPrice('frag');
             recalculateEvoPrice('box');
+            [...diamondPackages, ...cardPackages].forEach(pkg => { const card = document.getElementById(`card-${pkg.id}`); if (card && (pkg.adminActive === false || pkg.adminAvailable === false)) { card.style.opacity = pkg.adminActive === false ? '.35' : '.55'; card.style.cursor = 'not-allowed'; card.setAttribute('aria-disabled','true'); card.onclick = null; const price = card.querySelector('.text-brand-gold'); if (price) price.textContent = pkg.adminActive === false ? 'No disponible' : 'Agotado temporalmente'; } });
+            ['frag','box'].forEach(id => { const card = document.getElementById(`card-${id}`); const cfg=evoConfig[id]; if(card && cfg && (cfg.adminActive===false || cfg.adminAvailable===false)){card.style.opacity='.5';card.style.pointerEvents='none';card.setAttribute('aria-disabled','true');} });
         }
     </script>
 
