@@ -504,6 +504,23 @@
       }
     </style>
 
+<style id="jose-mobile-enhancements">
+@media(max-width:640px){
+  html{scroll-padding-top:12px} body{font-size:16px}
+  main.max-w-6xl{padding-left:12px;padding-right:12px;gap:20px}
+  #diamonds-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  #cards-grid{grid-template-columns:1fr;gap:10px}
+  #floating-buy{bottom:calc(12px + env(safe-area-inset-bottom));width:calc(100% - 24px);padding:14px 12px;font-size:13px;letter-spacing:.03em}
+  #checkout-step{padding-top:calc(8px + env(safe-area-inset-top));padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+  #checkout-step>div{max-height:calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:14px;border-radius:16px}
+  #checkout-title{font-size:1rem;line-height:1.45}
+  #coupon-code{font-size:16px;min-width:0}
+  #checkout-step button,#floating-buy{min-height:44px}
+  #ayuda,#historial-compras{padding-top:calc(18px + env(safe-area-inset-top));padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+  a.fixed.bottom-5.right-5{right:12px;bottom:calc(78px + env(safe-area-inset-bottom));width:48px;height:48px;font-size:24px}
+}
+@media(max-width:380px){#diamonds-grid{gap:8px}#floating-buy{font-size:11px;padding:12px 8px}main.max-w-6xl{padding-left:9px;padding-right:9px}}
+</style>
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-brand-purple selection:text-white pb-24 md:pb-12 bg-grid">
 
@@ -1204,6 +1221,7 @@
         const COUPONS = { RECARGA5: 5, RECARGA10: 10, JOSE15: 15 };
         function lineTotal(p) { return p.unitPrice != null ? p.unitPrice * (p.quantity || 1) : p.price; }
         function cartSubtotal() { return cart.reduce((sum, p) => sum + lineTotal(p), 0); }
+        function moneyARS(value) { return '$' + Number(value || 0).toLocaleString('es-AR') + ' ARS'; }
         function changeCartQuantity(id, delta) {
             const item = cart.find(p => p.id === id);
             if (!item || item.unitPrice == null) return;
@@ -1326,6 +1344,7 @@
         }
 
         function selectEvo(type) {
+            if (evoConfig[type].adminActive === false || evoConfig[type].adminAvailable === false) return;
             const qty = evoConfig[type].qty;
             const product = { id: `evo-${type}`, name: evoConfig[type].name, price: qty * evoConfig[type].unitPrice, quantity: qty };
             const index = cart.findIndex(p => p.id === product.id);
@@ -1338,7 +1357,7 @@
 
         function selectProduct(id) {
             const found = [...diamondPackages, ...cardPackages].find(p => p.id === id);
-            if (!found) return;
+            if (!found || found.adminActive === false || found.adminAvailable === false) return;
             const index = cart.findIndex(p => p.id === id);
             if (index >= 0) {
                 cart.splice(index, 1);
@@ -1541,9 +1560,27 @@
                 if (err) err.classList.remove('hidden');
                 return;
             }
+            // Abrimos la pestaña antes de cualquier await para evitar que el navegador bloquee WhatsApp.
+            const whatsappTab = window.open('about:blank', '_blank');
             const subtotal = cartSubtotal();
-            const discount = discountAmount();
-            const total = subtotal - discount;
+            const couponDiscount = discountAmount();
+            let loyaltyPercent = 0;
+            try {
+                if (window.JROrders && window.JROrders.getLoyaltyDiscount) {
+                    const data = await window.JROrders.getLoyaltyDiscount(String(playerId));
+                    if (Number.isFinite(Number(data))) loyaltyPercent = Math.max(0, Math.min(10, Number(data)));
+                }
+            } catch (e) { console.warn('Beneficio de fidelidad no disponible; se aplica solo el cupón.', e); }
+            const loyaltyDiscount = Math.round(Math.max(0, subtotal - couponDiscount) * loyaltyPercent / 100);
+            const discount = couponDiscount + loyaltyDiscount;
+            const total = Math.max(0, subtotal - discount);
+            const summaryPrice = document.getElementById('summary-price');
+            const checkoutTotalNow = document.getElementById('checkout-total');
+            const discountRow = document.getElementById('discount-row');
+            const discountValue = document.getElementById('discount-value');
+            if (summaryPrice) summaryPrice.textContent = `$${total.toLocaleString('es-AR')} ARS`;
+            if (checkoutTotalNow) checkoutTotalNow.textContent = `$${total.toLocaleString('es-AR')} ARS`;
+            if (discountRow && discount > 0) { discountRow.classList.remove('hidden'); if (discountValue) discountValue.textContent = `-${moneyARS(discount)}${loyaltyPercent ? ` (incluye ${loyaltyPercent}% por fidelidad)` : ''}`; }
             const orderId = 'JR-' + Math.random().toString(36).slice(2, 8).toUpperCase();
             try { const orders = JSON.parse(localStorage.getItem('joseRecargasOrders') || '{}'); orders[orderId] = { id: orderId, status: 'pendiente', total, createdAt: new Date().toISOString() }; localStorage.setItem('joseRecargasOrders', JSON.stringify(orders)); } catch(e) {}
             const productsText = cart.map((p, i) => `${i + 1}. *${p.name}* — Cantidad: ${p.quantity || 1} — $${lineTotal(p).toLocaleString('es-AR')} ARS`).join('\n');
@@ -1553,10 +1590,10 @@
                 (verifiedPlayer && verifiedPlayer.uid === playerId ? `✅ *Nombre de cuenta (verificado):* ${verifiedPlayer.name}\n` : '') +
                 `🛒 *Productos del pedido:*\n${productsText}\n\n` +
                 (appliedCoupon ? `🏷️ *Cupón:* ${appliedCoupon.code} (${appliedCoupon.percent}%)\n` : '') +
-                (discount ? `Subtotal: $${subtotal.toLocaleString('es-AR')} ARS\nDescuento: -$${discount.toLocaleString('es-AR')} ARS\n` : '') +
+                (loyaltyPercent ? `⭐ *Beneficio cliente frecuente:* ${loyaltyPercent}%\n` : '') +
+                (discount ? `Subtotal: $${subtotal.toLocaleString('es-AR')} ARS\nDescuento total: -$${discount.toLocaleString('es-AR')} ARS\n` : '') +
                 `💰 *TOTAL A PAGAR: $${total.toLocaleString('es-AR')} ARS*\n\nQuedo a la espera de los datos para realizar el pago. ¡Muchas gracias!`;
             // Abrimos una pestaña de inmediato para evitar que el navegador bloquee WhatsApp mientras guardamos la orden.
-            const whatsappTab = window.open('about:blank', '_blank');
             const orderPayload = { id: orderId, status: 'pendiente', total, player_id: playerId, player_name: verifiedPlayer?.name || null, products: cart.map(p => ({ name: p.name, quantity: p.quantity || 1, price: lineTotal(p) })), created_at: new Date().toISOString() };
             let sharedSaved = false;
             try { if (window.JROrders && window.JROrders.create) sharedSaved = await window.JROrders.create(orderPayload); } catch (e) { console.error('No se pudo guardar el pedido compartido:', e); }
@@ -1613,6 +1650,12 @@
             return orderClient;
         }
         window.JROrders = {
+            async getLoyaltyDiscount(playerId) {
+                const client = getOrderClient(); if (!client) return 0;
+                const { data, error } = await client.rpc('jr_loyalty_discount_percent', { p_player_id: String(playerId) });
+                if (error) { console.warn('Beneficio de fidelidad Supabase:', error.message); return 0; }
+                return Number(data) || 0;
+            },
             async create(order) {
                 const client = getOrderClient(); if (!client) return false;
                 const { error } = await client.from('pedidos').insert({
