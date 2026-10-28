@@ -29,3 +29,7 @@ with check (
 
 grant select, insert on public.resenas to anon, authenticated;
 grant usage, select on sequence public.resenas_id_seq to anon, authenticated;
+
+
+-- José Recargas: guardar el ID de Free Fire asociado a cada reseña (ejecutar en Supabase SQL Editor).
+alter table public.resenas add column if not exists player_id text;
