@@ -26,3 +26,23 @@ INSERT INTO public.product_catalog(id,name,price,cost,active,available) VALUES
 ('c1','Membresía Semanal',3000,0,true,true),('c2','Membresía Mensual',14000,0,true,true),('c3','Pase Booyah',2100,0,true,true),('frag','Fragmentos Evolutivos',70,0,true,true),('box','Cajas Evolutivas',400,0,true,true)
 ON CONFLICT(id) DO NOTHING;
 -- Reemplazá admin@tudominio.com en las políticas por el correo administrador exacto.
+
+
+-- Consulta pública limitada: solo devuelve el porcentaje asociado al teléfono exacto; no expone nombre ni otros datos.
+CREATE OR REPLACE FUNCTION public.jr_customer_discount_percent(p_phone text)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE((
+    SELECT cd.percent
+    FROM public.customer_discounts cd
+    WHERE regexp_replace(COALESCE(cd.phone, ''), '[^0-9]', '', 'g') = regexp_replace(COALESCE(p_phone, ''), '[^0-9]', '', 'g')
+      AND regexp_replace(COALESCE(p_phone, ''), '[^0-9]', '', 'g') <> ''
+    LIMIT 1
+  ), 0);
+$$;
+REVOKE ALL ON FUNCTION public.jr_customer_discount_percent(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.jr_customer_discount_percent(text) TO anon, authenticated;

@@ -907,6 +907,13 @@
           </div>
         </div>
 
+        <div class="rounded-xl border border-brand-purple/40 bg-brand-black/70 p-4 mb-4">
+          <h3 class="font-orbitron text-sm font-bold text-white mb-2"><i class="fa-solid fa-tag text-brand-neon mr-2"></i>DESCUENTO DE CLIENTE FRECUENTE</h3>
+          <p class="text-xs text-gray-400 mb-2">Si José te registró un descuento, ingresá aquí el mismo teléfono.</p>
+          <div class="flex flex-col sm:flex-row gap-2"><input id="customer-discount-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Tu teléfono" class="min-w-0 flex-1 rounded-xl bg-brand-dark border border-brand-border px-3 py-3 text-white"/><button type="button" onclick="applyCustomerDiscount()" class="rounded-xl bg-brand-purple px-4 py-3 font-bold text-white">Aplicar descuento</button></div>
+          <p id="customer-discount-status" class="text-xs text-gray-400 mt-2" aria-live="polite">Descuento opcional.</p>
+        </div>
+
         <div class="rounded-xl border border-brand-neon/30 bg-brand-black/70 p-4">
           <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-shield-check text-brand-neon"></i><h3 class="font-orbitron text-sm font-bold text-white">CUENTA VERIFICADA</h3></div>
           <p id="checkout-verified-account" class="text-sm text-gray-300">Verificá tu ID en la sección “ID de jugador” de la página principal antes de finalizar la compra.</p>
@@ -1218,6 +1225,8 @@
         let cart = [];
         let playerId = "";
         let appliedCoupon = null;
+        let customerDiscountPercent = 0;
+        let customerDiscountPhone = "";
         const COUPONS = { RECARGA5: 5, RECARGA10: 10, JOSE15: 15 };
         function lineTotal(p) { return p.unitPrice != null ? p.unitPrice * (p.quantity || 1) : p.price; }
         function cartSubtotal() { return cart.reduce((sum, p) => sum + lineTotal(p), 0); }
@@ -1231,6 +1240,22 @@
             updateSummary();
         }
         function discountAmount() { return appliedCoupon ? Math.round(cartSubtotal() * appliedCoupon.percent / 100) : 0; }
+        function customerDiscountAmount() { return Math.round(Math.max(0, cartSubtotal() - discountAmount()) * customerDiscountPercent / 100); }
+        async function applyCustomerDiscount() {
+          const input = document.getElementById("customer-discount-phone");
+          const status = document.getElementById("customer-discount-status");
+          const phone = (input?.value || "").trim();
+          if (!phone) { customerDiscountPercent = 0; customerDiscountPhone = ""; status.textContent = "Ingresá el teléfono que registraste con José para consultar tu descuento."; status.className = "text-xs text-amber-300 mt-2"; updateSummary(); return; }
+          status.textContent = "Consultando descuento…"; status.className = "text-xs text-gray-300 mt-2";
+          try {
+            const result = window.JROrders?.getCustomerDiscount ? await window.JROrders.getCustomerDiscount(phone) : 0;
+            customerDiscountPercent = Math.max(0, Math.min(50, Number(result) || 0));
+            customerDiscountPhone = phone;
+            status.textContent = customerDiscountPercent ? `¡Descuento de cliente frecuente aplicado: ${customerDiscountPercent}%!` : "No encontramos un descuento registrado para ese teléfono. Revisá que esté escrito igual que en el registro.";
+            status.className = customerDiscountPercent ? "text-xs text-emerald-300 mt-2" : "text-xs text-amber-300 mt-2";
+          } catch (e) { customerDiscountPercent = 0; customerDiscountPhone = ""; status.textContent = "No se pudo consultar el descuento. Intentá nuevamente."; status.className = "text-xs text-red-300 mt-2"; }
+          updateSummary();
+        }
         function applyCoupon() {
           const code = document.getElementById('coupon-code').value.trim().toUpperCase();
           const status = document.getElementById('coupon-status');
@@ -1496,7 +1521,7 @@
             selectedProduct = cart.length ? cart[cart.length - 1] : null;
             if (cart.length) {
                 const subtotal = cartSubtotal();
-                const discount = discountAmount();
+                const discount = discountAmount() + customerDiscountAmount();
                 const total = subtotal - discount;
                 summaryProdEl.innerHTML = cart.map(p => {
                     const totalLinea = lineTotal(p);
@@ -1525,7 +1550,7 @@
             if (checkoutProducts) {
                 checkoutProducts.innerHTML = cart.length ? cart.map((p, i) => `<div class="flex items-start justify-between gap-3 py-2 border-b border-brand-border/40"><span class="flex-1">${i + 1}. ${escapeHtml(p.name)} <span class="block text-xs text-gray-400">Cantidad: ${p.quantity || 1} · $${lineTotal(p).toLocaleString('es-AR')} ARS</span></span><strong class="whitespace-nowrap">$${lineTotal(p).toLocaleString('es-AR')}</strong></div>`).join('') : '<p class="text-gray-400">Todavía no agregaste productos.</p>';
                 const subtotalCheckout = cartSubtotal();
-                const discountCheckout = discountAmount();
+                const discountCheckout = discountAmount() + customerDiscountAmount();
                 checkoutTotal.textContent = `$${(subtotalCheckout - discountCheckout).toLocaleString('es-AR')} ARS`;
             }
             const finalizeBtn = document.getElementById('btn-finalize');
@@ -1564,6 +1589,7 @@
             const whatsappTab = window.open('about:blank', '_blank');
             const subtotal = cartSubtotal();
             const couponDiscount = discountAmount();
+            const customerDiscount = customerDiscountAmount();
             let loyaltyPercent = 0;
             try {
                 if (window.JROrders && window.JROrders.getLoyaltyDiscount) {
@@ -1571,8 +1597,8 @@
                     if (Number.isFinite(Number(data))) loyaltyPercent = Math.max(0, Math.min(10, Number(data)));
                 }
             } catch (e) { console.warn('Beneficio de fidelidad no disponible; se aplica solo el cupón.', e); }
-            const loyaltyDiscount = Math.round(Math.max(0, subtotal - couponDiscount) * loyaltyPercent / 100);
-            const discount = couponDiscount + loyaltyDiscount;
+            const loyaltyDiscount = Math.round(Math.max(0, subtotal - couponDiscount - customerDiscount) * loyaltyPercent / 100);
+            const discount = couponDiscount + customerDiscount + loyaltyDiscount;
             const total = Math.max(0, subtotal - discount);
             const summaryPrice = document.getElementById('summary-price');
             const checkoutTotalNow = document.getElementById('checkout-total');
@@ -1590,7 +1616,8 @@
                 (verifiedPlayer && verifiedPlayer.uid === playerId ? `✅ *Nombre de cuenta (verificado):* ${verifiedPlayer.name}\n` : '') +
                 `🛒 *Productos del pedido:*\n${productsText}\n\n` +
                 (appliedCoupon ? `🏷️ *Cupón:* ${appliedCoupon.code} (${appliedCoupon.percent}%)\n` : '') +
-                (loyaltyPercent ? `⭐ *Beneficio cliente frecuente:* ${loyaltyPercent}%\n` : '') +
+                (customerDiscountPercent ? `🎁 *Descuento registrado por teléfono:* ${customerDiscountPercent}% (${customerDiscountPhone})\n` : '') +
+                (loyaltyPercent ? `⭐ *Beneficio adicional por puntos:* ${loyaltyPercent}%\n` : '') +
                 (discount ? `Subtotal: $${subtotal.toLocaleString('es-AR')} ARS\nDescuento total: -$${discount.toLocaleString('es-AR')} ARS\n` : '') +
                 `💰 *TOTAL A PAGAR: $${total.toLocaleString('es-AR')} ARS*\n\nQuedo a la espera de los datos para realizar el pago. ¡Muchas gracias!`;
             // Abrimos una pestaña de inmediato para evitar que el navegador bloquee WhatsApp mientras guardamos la orden.
@@ -1650,6 +1677,12 @@
             return orderClient;
         }
         window.JROrders = {
+            async getCustomerDiscount(phone) {
+                const client = getOrderClient(); if (!client) return 0;
+                const { data, error } = await client.rpc("jr_customer_discount_percent", { p_phone: String(phone) });
+                if (error) { console.warn("Descuento de cliente:", error.message); throw error; }
+                return Number(data) || 0;
+            },
             async getLoyaltyDiscount(playerId) {
                 const client = getOrderClient(); if (!client) return 0;
                 const { data, error } = await client.rpc('jr_loyalty_discount_percent', { p_player_id: String(playerId) });
