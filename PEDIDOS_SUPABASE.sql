@@ -54,3 +54,27 @@ $$;
 drop trigger if exists pedidos_updated_at on public.pedidos;
 create trigger pedidos_updated_at before update on public.pedidos
 for each row execute function public.actualizar_pedido_updated_at();
+
+
+-- Historial de compras por ID de jugador.
+-- Devuelve únicamente los campos necesarios para mostrar pedidos en la web.
+create or replace function public.consultar_historial_pedidos(id_jugador text)
+returns table (
+  code text,
+  status text,
+  total numeric,
+  products jsonb,
+  created_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select p.code, p.status, p.total, p.products, p.created_at
+  from public.pedidos p
+  where p.player_id = trim(id_jugador)
+  order by p.created_at desc
+  limit 50;
+$$;
+revoke all on function public.consultar_historial_pedidos(text) from public;
+grant execute on function public.consultar_historial_pedidos(text) to anon, authenticated;

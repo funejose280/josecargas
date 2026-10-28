@@ -41,3 +41,10 @@ Para que los clientes puedan ver el estado desde cualquier teléfono o PC:
 5. El cliente entra a “Estado del pedido”, ingresa su código y consulta el estado actualizado.
 
 Estados admitidos: `pendiente`, `proceso`, `entregado`, `completado` y `cancelado`. En la web, `completado` también se muestra como “Entregado”. No habilites políticas públicas de lectura o actualización directa sobre la tabla `pedidos`.
+
+
+## Historial de compras para clientes
+
+La página incluye el botón **Historial de compras**. El cliente debe verificar primero su ID de Free Fire en el verificador principal y después tocar **Ver mi historial**. La web consulta hasta 50 pedidos de ese ID mediante la función `consultar_historial_pedidos`.
+
+Si ya habías ejecutado el SQL anterior, volvé a ejecutar el bloque final de `PEDIDOS_SUPABASE.sql` que crea `consultar_historial_pedidos`; no borra pedidos existentes. Para una protección fuerte de privacidad, la consulta debe asociarse a una sesión autenticada del cliente en el servidor: la verificación visual del ID en el navegador por sí sola no es un control de acceso del lado de la base de datos.

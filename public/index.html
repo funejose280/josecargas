@@ -903,6 +903,8 @@
       </div>
     </section>
 
+    <!-- El historial ya no ocupa espacio en el inicio; se abre en un panel lateral como Centro de ayuda. -->
+
     <!-- SEGUIMIENTO DE PEDIDOS -->
     <section id="seguimiento-pedidos" class="max-w-6xl mx-auto px-4 py-8 w-full"><div class="rounded-3xl border border-brand-purple/40 bg-gradient-to-br from-brand-card via-brand-dark to-brand-black p-6 md:p-8">
       <h2 class="font-orbitron text-xl md:text-2xl font-black text-white">📦 ESTADO DEL PEDIDO</h2><p class="text-sm text-gray-400 mt-2">Ingresá el código que te aparece al preparar tu pedido.</p>
@@ -986,12 +988,18 @@
         </div>
     </section>
 
+    <!-- ACCESO LATERAL AL HISTORIAL DE COMPRAS: mismo estilo que Centro de ayuda -->
+    <button id="history-toggle" type="button" aria-controls="historial-compras" aria-expanded="false" onclick="openPurchaseHistorySection()" class="fixed left-0 top-24 z-40 inline-flex h-12 items-center justify-center gap-3 rounded-r-xl border border-l-0 border-brand-purple/70 bg-gradient-to-r from-brand-purple to-brand-magenta px-4 text-white shadow-[0_8px_30px_rgba(157,78,221,.35)] transition-all hover:px-5 focus:outline-none focus:ring-2 focus:ring-brand-neon" title="Abrir Historial de compras" aria-label="Abrir Historial de compras">
+        <i class="fa-solid fa-clock-rotate-left" style="font-size:1.15rem; flex-shrink:0;"></i>
+        <span style="font-family:Orbitron, sans-serif; font-size:0.75rem; font-weight:700; letter-spacing:0.08em; white-space:nowrap;">HISTORIAL DE COMPRAS</span>
+    </button>
+
     <!-- ACCESO LATERAL AL CENTRO DE AYUDA -->
     <button id="help-toggle" type="button" aria-controls="ayuda" aria-expanded="false" onclick="toggleHelpCenter(true)" class="fixed left-0 top-8 z-40 inline-flex h-12 items-center justify-center gap-3 rounded-r-xl border border-l-0 border-brand-purple/70 bg-gradient-to-r from-brand-purple to-brand-magenta px-4 text-white shadow-[0_8px_30px_rgba(157,78,221,.35)] transition-all hover:px-5 focus:outline-none focus:ring-2 focus:ring-brand-neon" title="Abrir Centro de ayuda">
         <i class="fa-solid fa-circle-question" style="font-size:1.15rem; flex-shrink:0;"></i>
         <span style="font-family:Orbitron, sans-serif; font-size:0.75rem; font-weight:700; letter-spacing:0.08em; white-space:nowrap;">CENTRO DE AYUDA</span>
     </button>
-    <div id="help-backdrop" class="fixed inset-0 z-[60] hidden bg-black/70 backdrop-blur-sm" onclick="toggleHelpCenter(false)" aria-hidden="true"></div>
+    <div id="help-backdrop" class="fixed inset-0 z-[60] hidden bg-black/70 backdrop-blur-sm" onclick="toggleHelpCenter(false); togglePurchaseHistory(false)" aria-hidden="true"></div>
 
     <style>
         /* Al desplazarse por la página, el acceso se compacta en una burbuja */
@@ -1008,6 +1016,23 @@
         }
         #help-toggle.help-compact span {
             display: none;
+        }
+        #history-toggle.history-compact {
+            width: 3rem;
+            height: 3rem;
+            padding: 0;
+            gap: 0;
+            left: 0.75rem;
+            border-left-width: 1px;
+            border-radius: 9999px;
+            justify-content: center;
+            box-shadow: 0 8px 28px rgba(157, 78, 221, .48);
+        }
+        #history-toggle.history-compact span { display: none; }
+        #history-toggle.history-compact i { font-size: 1.25rem !important; }
+        #history-toggle span { transition: opacity .2s ease; }
+        @media (prefers-reduced-motion: reduce) {
+            #history-toggle, #history-toggle span { transition: none !important; }
         }
         #help-toggle.help-compact i {
             font-size: 1.35rem !important;
@@ -1073,15 +1098,56 @@
     </footer>
 
     <!-- JAVASCRIPT LOGIC -->
+    <!-- HISTORIAL DE COMPRAS LATERAL: mismo comportamiento visual que Centro de ayuda -->
+    <section id="historial-compras" aria-label="Historial de compras" aria-hidden="true" class="fixed right-0 top-0 z-[70] hidden h-[100dvh] w-full max-w-xl overflow-y-auto border-l border-brand-purple/40 bg-brand-dark px-4 py-6 shadow-2xl md:px-7 md:py-8">
+      <div class="mb-7 flex items-start justify-between gap-4 text-left">
+        <div>
+          <span class="inline-flex items-center gap-2 rounded-full border border-brand-purple/50 bg-brand-purple/15 px-4 py-2 text-xs font-bold tracking-widest text-brand-neon uppercase"><i class="fa-solid fa-clock-rotate-left"></i> Historial de compras</span>
+          <h2 class="font-orbitron font-black text-2xl md:text-3xl text-white mt-4">TUS <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">COMPRAS</span></h2>
+          <p class="text-gray-400 mt-3">Consultá tus pedidos anteriores con el ID de Free Fire que verificaste en la página principal.</p>
+        </div>
+        <button type="button" onclick="togglePurchaseHistory(false)" aria-label="Cerrar historial de compras" class="shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border border-brand-border bg-brand-card text-gray-300 hover:text-white hover:border-brand-neon"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+      <button type="button" onclick="loadPurchaseHistory()" class="w-full rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-5 py-3 font-bold text-white shadow-lg hover:opacity-90"><i class="fa-solid fa-magnifying-glass mr-2"></i>Actualizar historial</button>
+      <div id="purchase-history-result" class="mt-4 space-y-3 rounded-xl" aria-live="polite"></div>
+    </section>
+
     <script>
         // El botón completo se convierte en una bolita al bajar por la página.
         (function setupCompactHelpButton() {
             const toggle = document.getElementById('help-toggle');
-            if (!toggle) return;
-            const update = () => toggle.classList.toggle('help-compact', window.scrollY > 90);
+            const historyToggle = document.getElementById('history-toggle');
+            if (!toggle && !historyToggle) return;
+            const update = () => {
+                if (toggle) toggle.classList.toggle('help-compact', window.scrollY > 90);
+                if (historyToggle) historyToggle.classList.toggle('history-compact', window.scrollY > 90);
+            };
             window.addEventListener('scroll', update, { passive: true });
             update();
         })();
+
+        function openPurchaseHistorySection() {
+            togglePurchaseHistory(true);
+        }
+
+        function togglePurchaseHistory(open) {
+            const panel = document.getElementById('historial-compras');
+            const backdrop = document.getElementById('help-backdrop');
+            const toggle = document.getElementById('history-toggle');
+            if (!panel || !backdrop || !toggle) return;
+            panel.classList.toggle('hidden', !open);
+            backdrop.classList.toggle('hidden', !open);
+            panel.setAttribute('aria-hidden', String(!open));
+            toggle.setAttribute('aria-expanded', String(open));
+            document.body.classList.toggle('overflow-hidden', open);
+            if (open) {
+                const closeButton = panel.querySelector('button[aria-label="Cerrar historial de compras"]');
+                if (closeButton) closeButton.focus();
+                window.loadPurchaseHistory();
+            } else {
+                toggle.focus();
+            }
+        }
 
         function toggleHelpCenter(open) {
             const panel = document.getElementById('ayuda');
@@ -1102,8 +1168,10 @@
         }
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                const panel = document.getElementById('ayuda');
-                if (panel && !panel.classList.contains('hidden')) toggleHelpCenter(false);
+                const helpPanel = document.getElementById('ayuda');
+                const historyPanel = document.getElementById('historial-compras');
+                if (helpPanel && !helpPanel.classList.contains('hidden')) toggleHelpCenter(false);
+                if (historyPanel && !historyPanel.classList.contains('hidden')) togglePurchaseHistory(false);
             }
         });
 
@@ -1550,8 +1618,49 @@
                 if (error) { console.error('Supabase seguimiento:', error.message); return { error: 'No se pudo consultar el pedido. Es posible que falte ejecutar el SQL de configuración incluido en el ZIP.' }; }
                 const row = Array.isArray(data) ? data[0] : data;
                 return row || { error: 'No encontramos ese pedido. Revisá el código e intentá nuevamente.' };
+            },
+            async history(playerId) {
+                const client = getOrderClient();
+                if (!client) return { error: 'El historial compartido no está disponible. Revisá la configuración de Supabase.' };
+                const { data, error } = await client.rpc('consultar_historial_pedidos', { id_jugador: String(playerId) });
+                if (error) { console.error('Supabase historial:', error.message); return { error: 'No se pudo cargar el historial. Ejecutá el SQL actualizado PEDIDOS_SUPABASE.sql en Supabase.' }; }
+                return { orders: data || [] };
             }
         };
+
+        window.loadPurchaseHistory = async function() {
+            const resultEl = $('purchase-history-result');
+            resultEl.classList.remove('hidden');
+            resultEl.replaceChildren();
+            const playerInput = $('player-id');
+            const playerId = (playerInput?.value || '').trim();
+            if (!window.verifiedPlayerForHistoryCheck(playerId)) {
+                resultEl.textContent = 'Primero verificá tu ID de jugador en la parte superior de la página. El historial solo se consulta con la cuenta verificada.';
+                return;
+            }
+            resultEl.textContent = 'Buscando tus compras…';
+            const result = await window.JROrders.history(playerId);
+            resultEl.replaceChildren();
+            if (result.error) { resultEl.textContent = result.error; return; }
+            if (!result.orders.length) { resultEl.textContent = 'Todavía no encontramos compras registradas para este ID.'; return; }
+            const labels = { pendiente: 'Pendiente', proceso: 'En proceso', entregado: 'Entregado', completado: 'Entregado', cancelado: 'Cancelado' };
+            result.orders.forEach(order => {
+                const card = document.createElement('article');
+                card.className = 'rounded-xl border border-brand-border bg-brand-black/70 p-4';
+                const title = document.createElement('div'); title.className = 'flex flex-wrap items-center justify-between gap-2';
+                const code = document.createElement('strong'); code.className = 'font-orbitron text-white'; code.textContent = order.code || 'Pedido';
+                const statusEl = document.createElement('span'); statusEl.className = 'rounded-full border border-brand-purple/40 bg-brand-purple/20 px-3 py-1 text-xs font-bold text-brand-neon'; statusEl.textContent = labels[order.status] || order.status || 'Pendiente';
+                title.append(code, statusEl); card.append(title);
+                const date = document.createElement('p'); date.className = 'mt-2 text-xs text-gray-400'; date.textContent = 'Fecha: ' + (order.created_at ? new Date(order.created_at).toLocaleString('es-AR') : 'No disponible'); card.append(date);
+                const total = document.createElement('p'); total.className = 'mt-2 text-sm text-gray-200'; total.textContent = 'Total: $' + Number(order.total || 0).toLocaleString('es-AR') + ' ARS'; card.append(total);
+                let products = order.products;
+                if (typeof products === 'string') { try { products = JSON.parse(products); } catch (_) { products = []; } }
+                if (Array.isArray(products) && products.length) { const list = document.createElement('p'); list.className = 'mt-2 text-sm text-gray-300'; list.textContent = 'Productos: ' + products.map(item => `${item.name || 'Producto'}${item.quantity > 1 ? ' × ' + item.quantity : ''}`).join(', '); card.append(list); }
+                resultEl.append(card);
+            });
+        };
+        // Se expone solo una comprobación booleana del estado de verificación, nunca datos privados.
+        window.verifiedPlayerForHistoryCheck = (id) => typeof verifiedPlayer !== 'undefined' && !!verifiedPlayer && String(verifiedPlayer.uid) === String(id);
 
         function status(message, kind='info') {
             const el = $('review-status');
