@@ -4,6 +4,7 @@ create table if not exists public.resenas (
   name text not null check (char_length(trim(name)) between 2 and 40),
   rating integer not null check (rating between 1 and 5),
   message text not null check (char_length(trim(message)) between 5 and 700),
+  photo_urls text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 
@@ -33,3 +34,20 @@ grant usage, select on sequence public.resenas_id_seq to anon, authenticated;
 
 -- José Recargas: guardar el ID de Free Fire asociado a cada reseña (ejecutar en Supabase SQL Editor).
 alter table public.resenas add column if not exists player_id text;
+
+
+-- Fotos opcionales de comprobación de recarga en reseñas.
+alter table public.resenas add column if not exists photo_urls text[] not null default '{}';
+
+-- Bucket público para mostrar las fotos adjuntas a las reseñas. Ejecutar una sola vez.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('review-photos', 'review-photos', true, 5242880, array['image/jpeg','image/png','image/webp','image/gif'])
+on conflict (id) do update set public = true, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif'];
+
+drop policy if exists "Fotos de reseñas visibles públicamente" on storage.objects;
+create policy "Fotos de reseñas visibles públicamente" on storage.objects
+for select to anon, authenticated using (bucket_id = 'review-photos');
+
+drop policy if exists "Visitantes pueden subir fotos de reseñas" on storage.objects;
+create policy "Visitantes pueden subir fotos de reseñas" on storage.objects
+for insert to anon, authenticated with check (bucket_id = 'review-photos' and (storage.extension(name) in ('jpg','jpeg','png','webp','gif')));

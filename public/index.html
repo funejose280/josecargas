@@ -98,7 +98,7 @@
         }
 
         .animate-fade-in {
-            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: fadeInUp 0.22s ease-out both;
         }
 
         .animate-float {
@@ -442,7 +442,21 @@
             .item-card, .social-card, .btn-shimmer { transition:none !important; }
         }
 
-    </style>
+    
+        /* Rendimiento: priorizar desplazamiento fluido en móviles */
+        @media (max-width: 768px) {
+          .social-hero { background-attachment: scroll !important; }
+          .social-card:hover { transform: none; }
+          .animate-fade-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+          .animate-float { animation: none !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+        }
+        /* Dejar que el navegador renderice el contenido inferior cuando se acerca al viewport */
+        main > div > section, main > aside, main section[id] { content-visibility: auto; contain-intrinsic-size: auto 650px; }
+        img { height: auto; }
+</style>
 
     <!-- Mejoras de comodidad móvil para José Recargas -->
     <style id="jose-recargas-mobile-comfort">
@@ -653,6 +667,21 @@
         </div>
     </section>
 
+    <!-- VERIFICADOR PRINCIPAL: arriba de la página, reutilizado por compra y reseñas -->
+    <section id="verificador-principal" class="max-w-6xl mx-auto w-full px-4 pt-5 pb-2 scroll-mt-24">
+      <div class="rounded-2xl border border-brand-neon/30 bg-brand-card/95 p-4 md:p-5 shadow-xl">
+        <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-shield-halved text-brand-neon text-lg"></i><h2 class="font-orbitron text-white text-base md:text-lg font-bold">VERIFICÁ TU ID DE JUGADOR</h2></div>
+        <p class="text-xs md:text-sm text-gray-400 mb-3">Verificá tu cuenta una sola vez. Este mismo ID sirve para tu compra y para publicar una reseña.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+          <div><label for="player-id" class="block text-xs text-gray-300 mb-1 font-semibold">ID DE FREE FIRE</label><input type="number" id="player-id" placeholder="Ej: 1234567890" class="w-full px-3 py-3 bg-brand-dark border-2 border-brand-border rounded-xl text-white font-mono text-base tracking-wider placeholder-gray-500 focus:outline-none focus:border-brand-neon focus:ring-1 focus:ring-brand-neon transition" oninput="validateAndSaveAccountData()"></div>
+          <button type="button" id="btn-verify-id" onclick="verifyPlayerId()" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta text-white text-sm font-bold hover:opacity-90 transition"><i class="fa-solid fa-magnifying-glass mr-2"></i>Verificar ID</button>
+        </div>
+        <div id="verify-result" class="hidden mt-3 rounded-lg border border-brand-border bg-brand-dark p-3" aria-live="polite"></div>
+        <div id="summary-id" class="mt-2 text-xs text-gray-400 font-mono">Sin ingresar</div>
+      </div>
+    </section>
+
+
     <!-- MAIN CONTAINER -->
     <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -795,20 +824,6 @@
                 </h3>
 
                 <div class="space-y-4 text-sm">
-                    <!-- VERIFICADOR ÚNICO DE ID EN LA PÁGINA PRINCIPAL -->
-                    <div class="bg-brand-black/80 p-4 rounded-xl border border-brand-neon/30">
-                        <div class="flex items-center gap-2 mb-2">
-                          <i class="fa-solid fa-shield-halved text-brand-neon"></i>
-                          <span class="text-white text-sm font-bold">ID DE JUGADOR</span>
-                        </div>
-                        <p class="text-xs text-gray-400 mb-3">Verificá tu cuenta una sola vez. El mismo ID verificado se usará para publicar tu reseña y finalizar la compra.</p>
-                        <label for="player-id" class="block text-xs text-gray-300 mb-1 font-semibold">ID DE FREE FIRE</label>
-                        <input type="number" id="player-id" placeholder="Ej: 1234567890" class="w-full px-3 py-3 bg-brand-dark border-2 border-brand-border rounded-xl text-white font-mono text-base tracking-wider placeholder-gray-500 focus:outline-none focus:border-brand-neon focus:ring-1 focus:ring-brand-neon transition" oninput="validateAndSaveAccountData()">
-                        <button type="button" id="btn-verify-id" onclick="verifyPlayerId()" class="mt-3 w-full px-4 py-3 rounded-lg bg-gradient-to-r from-brand-purple to-brand-magenta text-white text-sm font-bold hover:opacity-90 transition"><i class="fa-solid fa-magnifying-glass mr-2"></i>Verificar ID</button>
-                        <div id="verify-result" class="hidden mt-3 rounded-lg border border-brand-border bg-brand-card p-3" aria-live="polite"></div>
-                        <div id="summary-id" class="mt-3 text-xs text-gray-400 font-mono">Sin ingresar</div>
-                    </div>
-
                     <!-- PRODUCTOS DEL PEDIDO -->
                     <div class="bg-brand-black/80 p-3.5 rounded-xl border border-brand-border/80">
                         <span class="text-gray-400 text-xs block mb-1">PRODUCTOS DEL PEDIDO</span>
@@ -935,6 +950,12 @@
                                 <textarea id="review-message" name="message" rows="4" maxlength="700" required placeholder="Contá cómo fue tu compra..." 
                                   class="w-full resize-y rounded-xl border border-brand-border bg-brand-dark px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-neon"></textarea>
                                 <p class="text-right text-xs text-gray-500 mt-1">Máximo 700 caracteres</p>
+                            </div>
+                            <div class="rounded-xl border border-brand-purple/40 bg-brand-purple/5 p-4">
+                                <label for="review-photos" class="block text-sm font-semibold text-gray-200 mb-1"><i class="fa-solid fa-images text-brand-neon mr-2"></i>Fotos del lobby (opcional)</label>
+                                <p class="text-xs text-gray-400 mb-3">Subí capturas del lobby o del saldo de diamantes para mostrar que recibiste la recarga. Máximo 3 imágenes, 5 MB cada una. Tapá datos personales si aparecen.</p>
+                                <input id="review-photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="block w-full text-sm text-gray-300 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-purple file:px-3 file:py-2 file:font-bold file:text-white" />
+                                <div id="review-photo-preview" class="mt-3 grid grid-cols-3 gap-2"></div>
                             </div>
                             <button id="review-submit" type="submit" class="btn-shimmer w-full rounded-xl px-5 py-3 font-orbitron font-bold text-white">
                                 <i class="fa-solid fa-paper-plane mr-2"></i>Publicar reseña
@@ -1583,6 +1604,17 @@
                 message.className = 'text-gray-300 mt-3 whitespace-pre-wrap break-words';
                 message.textContent = safeText(row.message);
                 card.append(top, message);
+                if (Array.isArray(row.photo_urls) && row.photo_urls.length) {
+                    const gallery = document.createElement('div');
+                    gallery.className = 'mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2';
+                    row.photo_urls.slice(0, 3).forEach((url, index) => {
+                        if (typeof url !== 'string' || !/^https:\/\//i.test(url)) return;
+                        const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'block overflow-hidden rounded-lg border border-brand-border';
+                        const img = document.createElement('img'); img.src = url; img.alt = 'Foto de comprobación de la recarga ' + (index + 1); img.loading = 'lazy'; img.className = 'w-full aspect-square object-cover';
+                        link.append(img); gallery.append(link);
+                    });
+                    if (gallery.childElementCount) card.append(gallery);
+                }
                 if (row.player_id) {
                     const account = document.createElement('p');
                     account.className = 'mt-3 pt-3 border-t border-brand-border/70 text-xs text-gray-400';
@@ -1600,7 +1632,7 @@
                 return;
             }
             reviewClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            const {data, error} = await reviewClient.from('resenas').select('id,name,rating,message,created_at').order('created_at', {ascending:false}).limit(100);
+            const {data, error} = await reviewClient.from('resenas').select('id,name,rating,message,photo_urls,created_at').order('created_at', {ascending:false}).limit(100);
             if (error) {
                 $('review-list').innerHTML = '<div class="rounded-xl border border-red-900/60 bg-red-950/20 p-5 text-sm text-red-200">No se pudieron cargar las reseñas. Revisá la configuración de Supabase y las políticas de acceso (RLS).</div>';
                 $('review-count').textContent = 'Error al cargar';
@@ -1612,6 +1644,16 @@
             document.querySelectorAll('.review-star').forEach(btn => btn.addEventListener('click', () => setRating(Number(btn.dataset.rating))));
             setRating(5);
             loadReviews();
+            const photoInput = $('review-photos');
+            if (photoInput) photoInput.addEventListener('change', () => {
+                const preview = $('review-photo-preview'); preview.replaceChildren();
+                const files = Array.from(photoInput.files || []);
+                if (files.length > 3) { photoInput.value = ''; status('Podés adjuntar hasta 3 fotos.', 'error'); return; }
+                for (const file of files) {
+                    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) { photoInput.value = ''; preview.replaceChildren(); status('Cada archivo debe ser una imagen de hasta 5 MB.', 'error'); return; }
+                    const img = document.createElement('img'); img.alt = 'Vista previa de foto'; img.className = 'w-full aspect-square object-cover rounded-lg border border-brand-border'; img.src = URL.createObjectURL(file); preview.append(img);
+                }
+            });
             $('review-form').addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const name = $('review-name').value.trim();
@@ -1634,7 +1676,19 @@
                 status('Guardando tu reseña...');
                 try {
                     if (!reviewClient) reviewClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    const {error} = await reviewClient.from('resenas').insert({name, player_id:verifiedPlayer.uid, rating:reviewRating, message});
+                    const selectedPhotos = Array.from($('review-photos')?.files || []);
+                    if (selectedPhotos.length > 3) throw new Error('Podés adjuntar hasta 3 fotos.');
+                    const photoUrls = [];
+                    for (const file of selectedPhotos) {
+                        if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) throw new Error('Cada foto debe ser una imagen de hasta 5 MB.');
+                        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+                        const path = `${verifiedPlayer.uid}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                        const { error: uploadError } = await reviewClient.storage.from('review-photos').upload(path, file, { upsert: false, contentType: file.type });
+                        if (uploadError) throw new Error('No se pudieron subir las fotos. Revisá la configuración del bucket review-photos en Supabase.');
+                        const { data: publicData } = reviewClient.storage.from('review-photos').getPublicUrl(path);
+                        if (publicData?.publicUrl) photoUrls.push(publicData.publicUrl);
+                    }
+                    const {error} = await reviewClient.from('resenas').insert({name, player_id:verifiedPlayer.uid, rating:reviewRating, message, photo_urls:photoUrls});
                     if (error) throw error;
                     $('review-form').reset();
                     setRating(5);
@@ -1642,7 +1696,7 @@
                     await loadReviews();
                 } catch (err) {
                     console.error('Error al publicar reseña:', err);
-                    status('No se pudo publicar. Revisá la conexión y las políticas de Supabase e intentá de nuevo.', 'error');
+                    status(err?.message || 'No se pudo publicar. Revisá la conexión y las políticas de Supabase e intentá de nuevo.', 'error');
                 } finally {
                     button.disabled = false;
                     button.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Publicar reseña';
