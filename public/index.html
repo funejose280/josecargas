@@ -456,6 +456,13 @@
         /* Dejar que el navegador renderice el contenido inferior cuando se acerca al viewport */
         main > div > section, main > aside, main section[id] { content-visibility: auto; contain-intrinsic-size: auto 650px; }
         img { height: auto; }
+
+/* Cuenta de cliente y puntos */
+#jr-account-modal[hidden]{display:none!important}
+.jr-account-input{width:100%;background:#100c1c;border:1px solid #51416d;color:#fff;border-radius:12px;padding:12px;font-size:16px;outline:none}
+.jr-account-input:focus{border-color:#b86bff;box-shadow:0 0 0 2px rgba(184,107,255,.18)}
+.jr-account-btn{border-radius:12px;padding:12px 14px;font-weight:800;min-height:44px}
+
 </style>
 
     <!-- Mejoras de comodidad móvil para José Recargas -->
@@ -632,6 +639,7 @@
                     Servicio Activo 24/7
                 </span>
             </div>
+            <button id="jr-account-open" type="button" class="jr-account-btn ml-3 border border-brand-purple bg-brand-purple/20 text-white text-xs sm:text-sm hover:bg-brand-purple/40"><i class="fa-solid fa-user-circle mr-1"></i><span id="jr-account-button-label">Mi cuenta / Mis puntos</span></button>
         </div>
     </header>
 
@@ -1902,6 +1910,81 @@
         });
     })();
     </script>
+
+
+<!-- Cuenta de clientes y puntos de fidelidad -->
+<div id="jr-account-modal" hidden class="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm p-3 sm:p-5 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="jr-account-title">
+ <section class="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl border border-brand-purple/70 bg-[#0d0918] p-5 sm:p-6 text-white shadow-2xl">
+  <div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-widest text-purple-300">José Recargas</p><h2 id="jr-account-title" class="mt-1 text-2xl font-black">Mi cuenta</h2></div><button id="jr-account-close" class="rounded-lg px-3 py-2 border border-white/20" type="button" aria-label="Cerrar">✕</button></div>
+  <p id="jr-account-message" class="mt-3 text-sm text-gray-300" aria-live="polite">Creá tu cuenta para consultar tus puntos.</p>
+  <div id="jr-account-auth-fields" class="mt-4 space-y-3">
+   <label class="block text-sm">Correo electrónico<input id="jr-account-email" class="jr-account-input mt-1" type="email" autocomplete="email" required maxlength="254" placeholder="vos@correo.com"></label>
+   <label class="block text-sm">Contraseña<input id="jr-account-password" class="jr-account-input mt-1" type="password" autocomplete="current-password" required minlength="10" maxlength="72" placeholder="Mínimo 10 caracteres"></label>
+   <div id="jr-account-signup-fields" class="space-y-3">
+    <label class="block text-sm">ID de jugador<input id="jr-account-player" class="jr-account-input mt-1" type="text" maxlength="80" placeholder="Tu ID de jugador"></label>
+    <label class="block text-sm">Teléfono usado en tus compras<input id="jr-account-phone" class="jr-account-input mt-1" type="tel" autocomplete="tel" maxlength="30" placeholder="Ej. 2611234567"></label>
+    <p class="text-xs text-gray-400">Para asociar puntos existentes, el ID y teléfono deben coincidir con los registrados en tus pedidos.</p>
+   </div>
+  </div>
+  <div id="jr-account-points" hidden class="mt-5 rounded-xl border border-purple-400/40 bg-purple-950/30 p-4">
+   <p class="text-sm text-gray-300">Tus puntos disponibles</p><p id="jr-account-points-value" class="text-4xl font-black text-purple-300">0</p>
+   <p id="jr-account-tier" class="mt-2 text-sm text-gray-200"></p><p id="jr-account-spent" class="mt-1 text-xs text-gray-400"></p>
+  </div>
+  <div id="jr-account-actions" class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+   <button id="jr-account-signup" type="button" class="jr-account-btn bg-purple-600 hover:bg-purple-500">Crear cuenta</button>
+   <button id="jr-account-login" type="button" class="jr-account-btn border border-purple-400 text-purple-200 hover:bg-purple-900/40">Iniciar sesión</button>
+  </div>
+  <div id="jr-account-logged-actions" hidden class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2"><button id="jr-account-refresh" type="button" class="jr-account-btn bg-purple-600">Actualizar mis puntos</button><button id="jr-account-logout" type="button" class="jr-account-btn border border-white/20">Cerrar sesión</button></div>
+ </section>
+</div>
+<script>
+(() => {
+ const $ = id => document.getElementById(id);
+ const url = 'https://ydzqoobdyeyurwtnrbvx.supabase.co';
+ const key = 'sb_publishable_2BDR3kdnh-k4G3cfbiJ_Rg_gq3qAcYm';
+ let client = null, mode = 'signup';
+ const modal = $('jr-account-modal');
+ const say = (msg, error=false) => { $('jr-account-message').textContent=msg; $('jr-account-message').style.color=error?'#fca5a5':'#d1d5db'; };
+ const ready = () => !!(window.supabase && key && key.startsWith('sb_'));
+ function getClient(){ if(!ready()) throw new Error('No se pudo iniciar la conexión. Recargá la página e intentá nuevamente.'); if(!client) client=window.supabase.createClient(url,key); return client; }
+ function setLoggedIn(user){
+   $('jr-account-auth-fields').hidden=!!user; $('jr-account-actions').hidden=!!user; $('jr-account-logged-actions').hidden=!user; $('jr-account-points').hidden=!user;
+   $('jr-account-button-label').textContent=user?'Mis puntos':'Mi cuenta / Mis puntos';
+   if(user){ $('jr-account-title').textContent='Mis puntos'; say('Sesión iniciada como '+(user.email||'cliente')+'.'); loadPoints(); }
+   else { $('jr-account-title').textContent='Mi cuenta'; $('jr-account-signup-fields').hidden=mode==='login'; }
+ }
+ async function loadPoints(){
+  try { const c=getClient(); const {data,error}=await c.rpc('jr_my_loyalty_summary'); if(error) throw error;
+   const row=Array.isArray(data)?data[0]:data;
+   if(!row || !row.linked){ $('jr-account-points-value').textContent='—'; $('jr-account-tier').textContent='Todavía no pudimos asociar tus puntos.'; $('jr-account-spent').textContent='Verificá que el ID de jugador y el teléfono coincidan con los de tus compras, o consultá con José.'; return; }
+   const points=Number(row.points)||0, count=Number(row.purchase_count)||0;
+   $('jr-account-points-value').textContent=String(points);
+   const discount=(points>=100||count>=10)?10:(points>=50||count>=5)?5:0;
+   $('jr-account-tier').textContent=discount?`¡Tenés un beneficio del ${discount}% disponible según el programa de fidelidad!`:`Te faltan ${Math.max(0,50-points)} puntos para llegar al primer nivel de 5%.`;
+   $('jr-account-spent').textContent=`Compras completadas: ${count} · Total acumulado: $${(Number(row.total_spent)||0).toLocaleString('es-AR')}`;
+   say('Puntos actualizados correctamente.');
+  } catch(e){ console.error('Cuenta/puntos:',e); say('No pudimos consultar tus puntos. Verificá que esté instalado el SQL de cuentas y puntos en Supabase.',true); }
+ }
+ $('jr-account-open').addEventListener('click',async()=>{modal.hidden=false;document.body.style.overflow='hidden';try{const {data}=await getClient().auth.getSession();setLoggedIn(data.session?.user||null);}catch(e){say(e.message,true);}});
+ function close(){modal.hidden=true;document.body.style.overflow='';}
+ $('jr-account-close').addEventListener('click',close); modal.addEventListener('click',e=>{if(e.target===modal)close();});
+ $('jr-account-signup').addEventListener('click',async()=>{
+  const email=$('jr-account-email').value.trim(), password=$('jr-account-password').value, player=$('jr-account-player').value.trim(), phone=$('jr-account-phone').value.trim();
+  if(!email||password.length<10||!player||!phone){say('Completá correo, contraseña (mínimo 10 caracteres), ID de jugador y teléfono.',true);return;}
+  try { const {data,error}=await getClient().auth.signUp({email,password,options:{data:{player_id:player,phone}}}); if(error)throw error;
+   if(data.session){setLoggedIn(data.user);say('Cuenta creada. Revisá tus puntos abajo.');} else {mode='login';$('jr-account-signup-fields').hidden=true;say('Cuenta creada. Revisá tu correo para confirmar la cuenta y después iniciá sesión.');}
+  }catch(e){say(e.message||'No se pudo crear la cuenta.',true);}
+ });
+ $('jr-account-login').addEventListener('click',async()=>{
+  const email=$('jr-account-email').value.trim(), password=$('jr-account-password').value;
+  if(!email||!password){say('Ingresá tu correo y contraseña.',true);return;}
+  try {const {data,error}=await getClient().auth.signInWithPassword({email,password});if(error)throw error;mode='login';setLoggedIn(data.user);}
+  catch(e){say(e.message||'No se pudo iniciar sesión.',true);}
+ });
+ $('jr-account-refresh').addEventListener('click',loadPoints);
+ $('jr-account-logout').addEventListener('click',async()=>{try{await getClient().auth.signOut();mode='signup';$('jr-account-signup-fields').hidden=false;setLoggedIn(null);say('Cerraste sesión.');}catch(e){say(e.message,true);}});
+})();
+</script>
 
 </body>
 </html>
