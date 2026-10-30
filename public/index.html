@@ -1699,11 +1699,14 @@
             },
             async create(order) {
                 const client = getOrderClient(); if (!client) return false;
-                const { error } = await client.from('pedidos').insert({
+                const { data: sessionData } = await client.auth.getSession();
+                const insertRow = {
                     code: order.id, status: 'pendiente', total: order.total,
                     player_id: order.player_id, player_name: order.player_name,
                     products: order.products
-                });
+                };
+                if (sessionData.session?.user?.id) insertRow.user_id = sessionData.session.user.id;
+                const { error } = await client.from('pedidos').insert(insertRow);
                 if (error) { console.error('Supabase pedidos:', error.message); return false; }
                 return true;
             },
@@ -1922,18 +1925,20 @@
    <label class="block text-sm">Contraseña<input id="jr-account-password" class="jr-account-input mt-1" type="password" autocomplete="current-password" required minlength="10" maxlength="72" placeholder="Mínimo 10 caracteres"></label>
    <div id="jr-account-signup-fields" class="space-y-3">
     <label class="block text-sm">ID de jugador<input id="jr-account-player" class="jr-account-input mt-1" type="text" maxlength="80" placeholder="Tu ID de jugador"></label>
-    <label class="block text-sm">Teléfono usado en tus compras<input id="jr-account-phone" class="jr-account-input mt-1" type="tel" autocomplete="tel" maxlength="30" placeholder="Ej. 2611234567"></label>
-    <p class="text-xs text-gray-400">Para asociar puntos existentes, el ID y teléfono deben coincidir con los registrados en tus pedidos.</p>
+    <p class="text-xs text-gray-400">Usamos tu ID para encontrar tu historial de compras. No necesitás poner teléfono.</p>
    </div>
   </div>
   <div id="jr-account-points" hidden class="mt-5 rounded-xl border border-purple-400/40 bg-purple-950/30 p-4">
    <p class="text-sm text-gray-300">Tus puntos disponibles</p><p id="jr-account-points-value" class="text-4xl font-black text-purple-300">0</p>
    <p id="jr-account-tier" class="mt-2 text-sm text-gray-200"></p><p id="jr-account-spent" class="mt-1 text-xs text-gray-400"></p>
   </div>
+  <div id="jr-account-reward" hidden class="mt-4 rounded-xl border border-emerald-400/40 bg-emerald-950/20 p-4"><p id="jr-account-reward-status" class="text-sm text-gray-200"></p><button id="jr-account-request-code" type="button" class="jr-account-btn mt-3 w-full bg-emerald-700 hover:bg-emerald-600">Solicitar código de descuento</button></div>
   <div id="jr-account-actions" class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
    <button id="jr-account-signup" type="button" class="jr-account-btn bg-purple-600 hover:bg-purple-500">Crear cuenta</button>
    <button id="jr-account-login" type="button" class="jr-account-btn border border-purple-400 text-purple-200 hover:bg-purple-900/40">Iniciar sesión</button>
   </div>
+  <div id="jr-account-recovery" class="mt-3 text-center"><button id="jr-account-forgot" type="button" class="text-sm text-purple-300 underline hover:text-white">¿Olvidaste tu contraseña?</button></div>
+  <div id="jr-account-reset-fields" hidden class="mt-4 space-y-3"><label class="block text-sm">Nueva contraseña<input id="jr-account-new-password" class="jr-account-input mt-1" type="password" autocomplete="new-password" minlength="10" maxlength="72" placeholder="Mínimo 10 caracteres"></label><button id="jr-account-save-password" type="button" class="jr-account-btn bg-purple-600 hover:bg-purple-500 w-full">Guardar nueva contraseña</button></div>
   <div id="jr-account-logged-actions" hidden class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2"><button id="jr-account-refresh" type="button" class="jr-account-btn bg-purple-600">Actualizar mis puntos</button><button id="jr-account-logout" type="button" class="jr-account-btn border border-white/20">Cerrar sesión</button></div>
  </section>
 </div>
@@ -1956,12 +1961,15 @@
  async function loadPoints(){
   try { const c=getClient(); const {data,error}=await c.rpc('jr_my_loyalty_summary'); if(error) throw error;
    const row=Array.isArray(data)?data[0]:data;
-   if(!row || !row.linked){ $('jr-account-points-value').textContent='—'; $('jr-account-tier').textContent='Todavía no pudimos asociar tus puntos.'; $('jr-account-spent').textContent='Verificá que el ID de jugador y el teléfono coincidan con los de tus compras, o consultá con José.'; return; }
+   if(!row || !row.linked){ $('jr-account-points-value').textContent='0'; $('jr-account-tier').textContent='Todavía no encontramos compras completadas asociadas a tu cuenta.'; $('jr-account-spent').textContent='Revisá que el ID de jugador de tu cuenta sea el mismo que usaste al comprar.'; $('jr-account-reward').hidden=true; return; }
    const points=Number(row.points)||0, count=Number(row.purchase_count)||0;
    $('jr-account-points-value').textContent=String(points);
    const discount=(points>=100||count>=10)?10:(points>=50||count>=5)?5:0;
    $('jr-account-tier').textContent=discount?`¡Tenés un beneficio del ${discount}% disponible según el programa de fidelidad!`:`Te faltan ${Math.max(0,50-points)} puntos para llegar al primer nivel de 5%.`;
    $('jr-account-spent').textContent=`Compras completadas: ${count} · Total acumulado: $${(Number(row.total_spent)||0).toLocaleString('es-AR')}`;
+   const eligible=points>=50||count>=5;
+   $('jr-account-reward').hidden=!eligible;
+   $('jr-account-reward-status').textContent=eligible?'¡Ya podés solicitar tu código de descuento!':'Al llegar a 50 puntos o 5 compras completadas, podrás solicitar un código.';
    say('Puntos actualizados correctamente.');
   } catch(e){ console.error('Cuenta/puntos:',e); say('No pudimos consultar tus puntos. Verificá que esté instalado el SQL de cuentas y puntos en Supabase.',true); }
  }
@@ -1969,9 +1977,9 @@
  function close(){modal.hidden=true;document.body.style.overflow='';}
  $('jr-account-close').addEventListener('click',close); modal.addEventListener('click',e=>{if(e.target===modal)close();});
  $('jr-account-signup').addEventListener('click',async()=>{
-  const email=$('jr-account-email').value.trim(), password=$('jr-account-password').value, player=$('jr-account-player').value.trim(), phone=$('jr-account-phone').value.trim();
-  if(!email||password.length<10||!player||!phone){say('Completá correo, contraseña (mínimo 10 caracteres), ID de jugador y teléfono.',true);return;}
-  try { const {data,error}=await getClient().auth.signUp({email,password,options:{data:{player_id:player,phone}}}); if(error)throw error;
+  const email=$('jr-account-email').value.trim(), password=$('jr-account-password').value, player=$('jr-account-player').value.trim();
+  if(!email||password.length<10||!player){say('Completá correo, contraseña (mínimo 10 caracteres) e ID de jugador.',true);return;}
+  try { const {data,error}=await getClient().auth.signUp({email,password,options:{data:{player_id:player}}}); if(error)throw error;
    if(data.session){setLoggedIn(data.user);say('Cuenta creada. Revisá tus puntos abajo.');} else {mode='login';$('jr-account-signup-fields').hidden=true;say('Cuenta creada. Revisá tu correo para confirmar la cuenta y después iniciá sesión.');}
   }catch(e){say(e.message||'No se pudo crear la cuenta.',true);}
  });
@@ -1980,6 +1988,29 @@
   if(!email||!password){say('Ingresá tu correo y contraseña.',true);return;}
   try {const {data,error}=await getClient().auth.signInWithPassword({email,password});if(error)throw error;mode='login';setLoggedIn(data.user);}
   catch(e){say(e.message||'No se pudo iniciar sesión.',true);}
+ });
+ $('jr-account-forgot').addEventListener('click',async()=>{
+  const email=$('jr-account-email').value.trim();
+  if(!email){say('Primero ingresá tu correo electrónico y después tocá “¿Olvidaste tu contraseña?”.',true);$('jr-account-email').focus();return;}
+  try { const {error}=await getClient().auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname}); if(error)throw error; say('Si existe una cuenta con ese correo, te enviaremos un enlace para restablecer la contraseña. Revisá también Spam.'); }
+  catch(e){say(e.message||'No se pudo enviar el correo de recuperación. Revisá la configuración de correo de Supabase.',true);}
+ });
+ $('jr-account-save-password').addEventListener('click',async()=>{
+  const password=$('jr-account-new-password').value;
+  if(password.length<10){say('La nueva contraseña debe tener al menos 10 caracteres.',true);return;}
+  try { const {error}=await getClient().auth.updateUser({password}); if(error)throw error; $('jr-account-reset-fields').hidden=true; $('jr-account-auth-fields').hidden=false; $('jr-account-actions').hidden=false; $('jr-account-recovery').hidden=false; $('jr-account-title').textContent='Mi cuenta'; $('jr-account-new-password').value=''; history.replaceState(null,'',window.location.pathname+window.location.search); say('Contraseña actualizada. Ya podés iniciar sesión con tu nueva contraseña.'); }
+  catch(e){say(e.message||'No se pudo cambiar la contraseña. Abrí nuevamente el enlace del correo.',true);}
+ });
+ // Al volver desde el enlace de recuperación, mostrar el formulario para elegir una contraseña nueva.
+ if(window.location.hash.includes('type=recovery')){
+  modal.hidden=false; modal.classList.remove('hidden'); $('jr-account-title').textContent='Restablecer contraseña'; $('jr-account-auth-fields').hidden=true; $('jr-account-actions').hidden=true; $('jr-account-recovery').hidden=true; $('jr-account-reset-fields').hidden=false; say('Ingresá una nueva contraseña de al menos 10 caracteres.');
+ }
+ $('jr-account-request-code').addEventListener('click',async()=>{
+  const b=$('jr-account-request-code'); b.disabled=true;
+  try { const {data,error}=await getClient().rpc('jr_request_discount_code'); if(error)throw error;
+   say('¡Solicitud enviada! José revisará tu pedido y te entregará el código de descuento.');
+   $('jr-account-reward-status').textContent='Tu solicitud está registrada y pendiente de aprobación.'; b.textContent='Solicitud enviada';
+  } catch(e){say(e.message||'No se pudo enviar la solicitud. Intentá nuevamente.',true);b.disabled=false;}
  });
  $('jr-account-refresh').addEventListener('click',loadPoints);
  $('jr-account-logout').addEventListener('click',async()=>{try{await getClient().auth.signOut();mode='signup';$('jr-account-signup-fields').hidden=false;setLoggedIn(null);say('Cerraste sesión.');}catch(e){say(e.message,true);}});
