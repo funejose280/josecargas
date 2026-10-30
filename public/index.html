@@ -1961,7 +1961,7 @@
  async function loadPoints(){
   try { const c=getClient(); const {data,error}=await c.rpc('jr_my_loyalty_summary'); if(error) throw error;
    const row=Array.isArray(data)?data[0]:data;
-   if(!row || !row.linked){ $('jr-account-points-value').textContent='0'; $('jr-account-tier').textContent='Todavía no encontramos compras completadas asociadas a tu cuenta.'; $('jr-account-spent').textContent='Revisá que el ID de jugador de tu cuenta sea el mismo que usaste al comprar.'; $('jr-account-reward').hidden=true; return; }
+   if(!row || row.linked === false){ $('jr-account-points-value').textContent='0'; $('jr-account-tier').textContent='Todavía no encontramos compras completadas asociadas a tu cuenta.'; $('jr-account-spent').textContent='Comprobá que el ID de jugador de tu cuenta coincida con el de tus pedidos. Si ya coincide, pedile a José que revise la asociación.'; $('jr-account-reward').hidden=true; say('No encontramos puntos asociados a esta cuenta todavía.'); return; }
    const points=Number(row.points)||0, count=Number(row.purchase_count)||0;
    $('jr-account-points-value').textContent=String(points);
    const discount=(points>=100||count>=10)?10:(points>=50||count>=5)?5:0;
@@ -1969,6 +1969,8 @@
    $('jr-account-spent').textContent=`Compras completadas: ${count} · Total acumulado: $${(Number(row.total_spent)||0).toLocaleString('es-AR')}`;
    const eligible=points>=50||count>=5;
    $('jr-account-reward').hidden=!eligible;
+   $('jr-account-request-code').disabled=false;
+   $('jr-account-request-code').textContent='Solicitar código de descuento';
    $('jr-account-reward-status').textContent=eligible?'¡Ya podés solicitar tu código de descuento!':'Al llegar a 50 puntos o 5 compras completadas, podrás solicitar un código.';
    say('Puntos actualizados correctamente.');
   } catch(e){ console.error('Cuenta/puntos:',e); say('No pudimos consultar tus puntos. Verificá que esté instalado el SQL de cuentas y puntos en Supabase.',true); }
