@@ -1699,15 +1699,15 @@
             },
             async create(order) {
                 const client = getOrderClient(); if (!client) return false;
-                const { data: sessionData } = await client.auth.getSession();
+                // La tabla pedidos de esta versión no utiliza user_id.
+                // El pedido se identifica por su código e ID de jugador.
                 const insertRow = {
                     code: order.id, status: 'pendiente', total: order.total,
                     player_id: order.player_id, player_name: order.player_name,
                     products: order.products
                 };
-                if (sessionData.session?.user?.id) insertRow.user_id = sessionData.session.user.id;
                 const { error } = await client.from('pedidos').insert(insertRow);
-                if (error) { console.error('Supabase pedidos:', error.message); return false; }
+                if (error) { console.error('No se pudo guardar el pedido en Supabase:', error.message, error.details || '', error.hint || ''); return false; }
                 return true;
             },
             async track(code) {
