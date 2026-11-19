@@ -20,8 +20,8 @@ button,.btn{border:1px solid transparent;border-radius:12px;padding:11px 16px;ba
 <p class="footer">JOSÉ RECARGAS · PANEL DE ADMINISTRACIÓN · Acceso protegido por Supabase</p></main>
 <script>
 (() => {
- const SUPABASE_URL='https://ydzqoobdyeyurwtnrbvx.supabase.co';
- const SUPABASE_ANON_KEY='sb_publishable_2BDR3kdnh-k4G3cfbiJ_Rg_gq3qAcYm';
+ const SUPABASE_URL='https://qtpffmacnkczxdtlnua.supabase.co';
+ const SUPABASE_ANON_KEY='sb_publishable__0tZScNn4-lutY86UyDrEg_-IO-1i84';
  const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
  const $=id=>document.getElementById(id); let allOrders=[], catalog=[], discounts=[], loyalty=[], knownOrderCodes=new Set(), firstLoad=true, notificationPermission='default';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
