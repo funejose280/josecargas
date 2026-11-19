@@ -930,6 +930,8 @@
         <div class="flex flex-col-reverse sm:flex-row gap-3 mt-6">
           <button type="button" onclick="backToProducts()" class="flex-1 py-3 px-4 rounded-xl border border-brand-border text-gray-200 font-bold hover:bg-brand-black transition"><i class="fa-solid fa-arrow-left mr-2"></i>Volver a los productos</button>
           <button type="button" onclick="sendOrderWhatsApp()" id="btn-finalize" disabled class="flex-1 py-3 px-4 rounded-xl bg-gray-800 text-gray-500 font-orbitron font-bold flex items-center justify-center gap-2 cursor-not-allowed transition"><i class="fa-brands fa-whatsapp text-xl"></i>FINALIZAR COMPRA</button>
+          <button type="button" id="jr-wallet-checkout" class="flex-1 py-3 px-4 rounded-xl bg-cyan-800 text-white font-orbitron font-bold flex items-center justify-center gap-2 transition"><i class="fa-solid fa-wallet"></i>PAGAR CON MI SALDO</button>
+          <p class="w-full text-xs text-gray-400 sm:col-span-2">El pago con saldo utiliza los precios vigentes del catálogo y no aplica cupones ni descuentos adicionales.</p>
         </div>
         <p id="checkout-error" class="hidden text-amber-300 text-sm mt-3" role="alert">Seleccioná tus productos y verificá correctamente tu ID antes de finalizar.</p>
       </div>
@@ -1945,6 +1947,14 @@
     <p class="text-sm text-gray-300">Tus puntos disponibles</p><p id="jr-account-points-value" class="text-4xl font-black text-purple-300">—</p>
     <p id="jr-account-tier" class="mt-2 text-sm text-gray-200">Consultando tus puntos…</p><p id="jr-account-spent" class="mt-1 text-xs text-gray-400"></p>
    </div>
+   <div id="jr-wallet" class="mt-4 rounded-xl border border-cyan-400/40 bg-cyan-950/20 p-4">
+    <div class="flex items-center justify-between gap-3"><div><p class="text-xs uppercase tracking-wide text-cyan-300">Mi billetera</p><p id="jr-wallet-balance" class="mt-1 text-3xl font-black text-cyan-200">$0</p></div><button id="jr-wallet-refresh" type="button" class="jr-account-btn border border-cyan-300/30">Actualizar</button></div>
+    <p class="mt-2 text-xs text-gray-300">Cargá saldo por transferencia. Se acredita únicamente cuando José verifica el comprobante.</p>
+    <div class="mt-3 rounded-xl border border-white/10 bg-black/20 p-3"><p class="text-sm font-bold">Alias Mercado Pago: <span class="text-cyan-200">jose280</span></p><p class="text-xs text-gray-400">Titular: José Recargas. Revisá el destinatario antes de transferir.</p></div>
+    <form id="jr-wallet-topup-form" class="mt-3 space-y-2"><label class="block text-sm">Importe a cargar (mínimo $100)<input id="jr-wallet-amount" class="jr-account-input mt-1" type="number" min="100" max="1000000" step="1" required placeholder="Ej. 5000"></label><label class="block text-sm">Comprobante (JPG, PNG, WEBP o PDF; máximo 5 MB)<input id="jr-wallet-proof" class="jr-account-input mt-1" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required></label><button id="jr-wallet-submit" class="jr-account-btn w-full bg-cyan-700 hover:bg-cyan-600" type="submit">Enviar solicitud de carga</button></form>
+    <p id="jr-wallet-message" class="mt-2 text-xs text-gray-300" aria-live="polite"></p>
+    <div class="mt-4"><p class="text-sm font-bold">Mis movimientos y cargas</p><div id="jr-wallet-history" class="mt-2 space-y-2 text-xs text-gray-300">Cargando…</div></div>
+   </div>
    <div id="jr-account-reward" hidden class="mt-4 rounded-xl border border-emerald-400/40 bg-emerald-950/20 p-4"><p id="jr-account-reward-status" class="text-sm text-gray-200"></p><button id="jr-account-request-code" type="button" class="jr-account-btn mt-3 w-full bg-emerald-700 hover:bg-emerald-600">Solicitar código de descuento</button></div>
    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2"><button id="jr-account-refresh" type="button" class="jr-account-btn bg-purple-600">Actualizar mis puntos</button><button id="jr-account-switch" type="button" class="jr-account-btn border border-white/20">Cambiar cuenta / crear otra</button></div>
   </div>
@@ -1977,7 +1987,7 @@
  function setLoggedIn(user){
   const logged=!!user; $('jr-account-auth-view').hidden=logged; $('jr-account-logged-view').hidden=!logged;
   $('jr-account-button-label').textContent=logged?'Mis puntos':'Mi cuenta / Mis puntos';
-  if(logged){ $('jr-account-title').textContent='Mi cuenta y mis puntos'; $('jr-account-user-email').textContent=user.email||'Cuenta de cliente'; $('jr-account-points-value').textContent='…'; $('jr-account-tier').textContent='Estamos buscando tus compras…'; $('jr-account-spent').textContent=''; $('jr-account-reward').hidden=true; say('Sesión iniciada. Este es tu historial de puntos.'); loadPoints(); }
+  if(logged){ $('jr-account-title').textContent='Mi cuenta y mis puntos'; $('jr-account-user-email').textContent=user.email||'Cuenta de cliente'; $('jr-account-points-value').textContent='…'; $('jr-account-tier').textContent='Estamos buscando tus compras…'; $('jr-account-spent').textContent=''; $('jr-account-reward').hidden=true; say('Sesión iniciada. Este es tu historial de puntos y billetera.'); loadPoints(); loadWallet(); }
   else {renderMode(mode);}
  }
  async function loadPoints(){
@@ -1995,6 +2005,38 @@
    say('Puntos actualizados correctamente.');
   } catch(e){console.error('Cuenta/puntos:',e); $('jr-account-points-value').textContent='—'; $('jr-account-tier').textContent='No pudimos consultar los puntos en este momento.'; say('No pudimos consultar tus puntos. Verificá la configuración de cuentas y puntos en Supabase.',true);}
  }
+ async function loadWallet(){
+  try{const c=getClient();const {data:sessionData}=await c.auth.getSession();const user=sessionData.session?.user;if(!user)return;
+   const [{data:wallet,error:we},{data:tx,error:te},{data:req,error:re}]=await Promise.all([
+    c.from('wallets').select('balance').eq('user_id',user.id).maybeSingle(),
+    c.from('wallet_transactions').select('kind,amount,description,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(10),
+    c.from('wallet_topup_requests').select('amount,status,created_at,admin_note').eq('user_id',user.id).order('created_at',{ascending:false}).limit(10)
+   ]);
+   if(we)throw we;if(te)throw te;if(re)throw re;
+   $('jr-wallet-balance').textContent='$'+Number(wallet?.balance||0).toLocaleString('es-AR',{maximumFractionDigits:2});
+   const rows=[...(req||[]).map(x=>({date:x.created_at,label:'Carga solicitada · '+(x.status==='pending'?'Pendiente':x.status==='approved'?'Aprobada':'Rechazada'),amount:x.amount,kind:'request',note:x.admin_note})),...(tx||[]).map(x=>({date:x.created_at,label:x.description,amount:x.amount,kind:'transaction'}))].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,10);
+   $('jr-wallet-history').innerHTML=rows.length?rows.map(x=>`<div class="flex justify-between gap-3 border-b border-white/10 py-2"><span>${new Date(x.date).toLocaleString('es-AR')}<br>${String(x.label).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}${x.note?'<br>'+String(x.note).replace(/[&<>]/g,''):''}</span><strong class="whitespace-nowrap ${Number(x.amount)<0?'text-red-300':'text-emerald-300'}">${x.kind==='request'?'$':''}${Number(x.amount)>0?'+':''}$${Number(x.amount).toLocaleString('es-AR')}</strong></div>`).join(''):'Todavía no tenés movimientos.';
+  }catch(e){console.error('Billetera:',e);$('jr-wallet-message').textContent='No se pudo cargar la billetera. Verificá que ejecutaste BILLETERA_JOSE_RECARGAS.sql.';}
+ }
+ $('jr-wallet-checkout')?.addEventListener('click',async()=>{
+  const btn=$('jr-wallet-checkout');if(btn.disabled)return;
+  if(!Array.isArray(cart)||!cart.length){$('checkout-error').classList.remove('hidden');return;}
+  if(!playerId||String(playerId).length<6||!verifiedPlayer||String(verifiedPlayer.uid)!==String(playerId)){$('checkout-error').classList.remove('hidden');return;}
+  btn.disabled=true;btn.textContent='PROCESANDO…';
+  try{
+   const c=getClient();const {data:{user},error:ue}=await c.auth.getUser();if(ue)throw ue;if(!user)throw new Error('Primero iniciá sesión desde “Mi cuenta”.');
+   const code='JR-'+Array.from(crypto.getRandomValues(new Uint8Array(6))).map(v=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[v%36]).join('');
+   const products=cart.map(p=>({id:String(p.id),name:String(p.name||'Producto'),quantity:Number(p.quantity||1),price:Number(p.price||p.unitPrice||0)}));
+   const {data,error}=await c.rpc('jr_wallet_pay_order',{p_code:code,p_player_id:String(playerId),p_player_name:verifiedPlayer?.name||null,p_products:products,p_customer_phone:null});if(error)throw error;
+   try{const orders=JSON.parse(localStorage.getItem('joseRecargasOrders')||'{}');orders[code]={id:code,status:'pendiente',total:Number(data.total),createdAt:new Date().toISOString()};localStorage.setItem('joseRecargasOrders',JSON.stringify(orders));}catch(e){}
+   const tracking=$('tracking-code');if(tracking)tracking.value=code;
+   alert('¡Compra registrada! Pedido '+code+'. Se descontaron $'+Number(data.total).toLocaleString('es-AR')+' de tu billetera. Saldo restante: $'+Number(data.new_balance).toLocaleString('es-AR')+'.');
+   cart=[];if(typeof updateSummary==='function')updateSummary();backToProducts();await loadWallet();
+  }catch(err){console.error('Pago con billetera:',err);alert(err.message||'No se pudo completar el pago.');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-wallet"></i>PAGAR CON MI SALDO';}
+ });
+ $('jr-wallet-refresh').addEventListener('click',loadWallet);
+ $('jr-wallet-topup-form').addEventListener('submit',async e=>{e.preventDefault();const btn=$('jr-wallet-submit');if(btn.disabled)return;const amount=Number($('jr-wallet-amount').value),file=$('jr-wallet-proof').files[0];if(!Number.isFinite(amount)||amount<100||amount>1000000){$('jr-wallet-message').textContent='Ingresá un importe entre $100 y $1.000.000.';return;}if(!file||file.size>5*1024*1024){$('jr-wallet-message').textContent='Elegí un comprobante válido de hasta 5 MB.';return;}const allowed=['image/jpeg','image/png','image/webp','application/pdf'];if(!allowed.includes(file.type)){$('jr-wallet-message').textContent='Formato no permitido.';return;}btn.disabled=true;$('jr-wallet-message').textContent='Subiendo comprobante…';try{const c=getClient();const {data:{user}}=await c.auth.getUser();if(!user)throw new Error('Iniciá sesión nuevamente.');const ext=file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';const path=user.id+'/'+crypto.randomUUID()+'.'+ext;const {error:upErr}=await c.storage.from('wallet-proofs').upload(path,file,{upsert:false,contentType:file.type});if(upErr)throw upErr;const {error:reqErr}=await c.rpc('jr_request_wallet_topup',{p_amount:amount,p_proof_path:path});if(reqErr){await c.storage.from('wallet-proofs').remove([path]);throw reqErr;}$('jr-wallet-topup-form').reset();$('jr-wallet-message').textContent='Solicitud enviada. Tu saldo se acreditará cuando el administrador verifique el comprobante.';await loadWallet();}catch(err){console.error(err);$('jr-wallet-message').textContent=err.message||'No se pudo enviar la solicitud.';}finally{btn.disabled=false;}});
  $('jr-account-open').addEventListener('click',async()=>{modal.hidden=false;document.body.style.overflow='hidden';try{const {data,error}=await getClient().auth.getSession();if(error)throw error;setLoggedIn(data.session?.user||null);}catch(e){renderMode('signup');say(e.message,true);}});
  function close(){modal.hidden=true;document.body.style.overflow='';}
  $('jr-account-close').addEventListener('click',close); modal.addEventListener('click',e=>{if(e.target===modal)close();});
