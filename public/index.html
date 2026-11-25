@@ -1648,7 +1648,7 @@
         window.onload = async function() {
             // Carga opcional del catálogo administrable; si la tabla aún no está creada, usa los precios originales.
             try {
-                const catClient = window.supabase.createClient('https://qtpffmacnkczxdtlnua.supabase.co', 'sb_publishable__0tZScNn4-lutY86UyDrEg_-IO-1i84');
+                const catClient = window.supabase.createClient('https://qtpffmacnknczxdtlnua.supabase.co', 'sb_publishable__0tZScNn4-lutY86UyDrEg_-IO-1i84');
                 const { data: catalog } = await catClient.from('product_catalog').select('id,name,price,active,available');
                 if (Array.isArray(catalog) && catalog.length) {
                     const byId = new Map(catalog.map(p => [p.id, p]));
@@ -1671,7 +1671,7 @@
     (() => {
         // IMPORTANTE: reemplazá estos dos valores con los de tu proyecto Supabase.
         // Usá la clave publishable/anon pública, NUNCA la service_role.
-        const SUPABASE_URL = 'https://qtpffmacnkczxdtlnua.supabase.co';
+        const SUPABASE_URL = 'https://qtpffmacnknczxdtlnua.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable__0tZScNn4-lutY86UyDrEg_-IO-1i84';
         let reviewRating = 5;
         let reviewClient = null;
@@ -1965,7 +1965,7 @@
 <script>
 (() => {
  const $ = id => document.getElementById(id);
- const url = 'https://qtpffmacnkczxdtlnua.supabase.co';
+ const url = 'https://qtpffmacnknczxdtlnua.supabase.co';
  const key = 'sb_publishable__0tZScNn4-lutY86UyDrEg_-IO-1i84';
  let client = null, mode = 'signup', busy = false;
  const modal = $('jr-account-modal');
