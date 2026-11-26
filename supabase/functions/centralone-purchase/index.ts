@@ -148,11 +148,44 @@ Deno.serve(async (req) => {
       if (localError || !localOrder) return fail("No se pudo recuperar el pedido reservado", 500);
 
       if (localOrder.centralone_order_id) {
+        // Reutilizar el mismo código consulta la orden existente; nunca crea una segunda compra.
+        try {
+          const existingResponse = await co(`/orders/${encodeURIComponent(localOrder.centralone_order_id)}`);
+          const existingBody = await existingResponse.json().catch(() => ({}));
+          if (existingResponse.ok && existingBody.order) {
+            const existingOrder = existingBody.order;
+            await db.rpc("jr_c1_record_supplier_result", {
+              p_order_id: localOrder.id,
+              p_centralone_order_id: existingOrder.id,
+              p_supplier_status: existingOrder.status || "unknown",
+              p_response: existingBody,
+            });
+            const terminal = ["failed", "cancelled"].includes(existingOrder.status) ||
+              (Array.isArray(existingOrder.items) && existingOrder.items.some((item: any) =>
+                ["failed", "cancelled", "refunded"].includes(item.status)));
+            let refunded = false;
+            if (existingOrder.refund?.refunded === true && terminal) {
+              const { data: refundResult, error: refundError } = await db.rpc("jr_c1_refund_customer", {
+                p_order_id: localOrder.id,
+              });
+              if (!refundError) refunded = !!refundResult?.ok;
+            }
+            return reply({
+              ok: true, refunded, order_id: localOrder.id, code,
+              supplier_status: existingOrder.status || "unknown",
+              message: refunded ? "Central One confirmó el fallo y el saldo fue reintegrado."
+                : existingOrder.status === "completed" ? "Recarga completada."
+                : "Este pedido ya existe y sigue en seguimiento. No se creó otra compra.",
+            });
+          }
+        } catch (_syncError) {
+          // Si no se puede consultar, se conserva el pedido y su misma clave.
+        }
         return reply({
-          ok: true, order_id: localOrder.id, code,
+          ok: false, pending: true, order_id: localOrder.id, code,
           supplier_status: localOrder.centralone_status,
-          message: "Este pedido ya fue enviado a Central One. No se creó otra compra.",
-        });
+          error: "El pedido ya fue enviado. No se creó otra compra; volvé a consultar usando este mismo código.",
+        }, 202);
       }
 
       // POST repetido con la misma Idempotency-Key devuelve la misma orden, sin doble cobro.
@@ -192,7 +225,6 @@ Deno.serve(async (req) => {
           "price_changed",
           "out_of_stock",
           "not_found",
-          "provider_rejected",
         ]);
         const definiteNoOrder = providerResponse.status >= 400 &&
           providerResponse.status < 500 &&
