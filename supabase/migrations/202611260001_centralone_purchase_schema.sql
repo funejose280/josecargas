@@ -135,8 +135,8 @@ BEGIN
   SET balance=balance-v_product.price,updated_at=now()
   WHERE user_id=p_user_id;
 
-  INSERT INTO public.wallet_transactions(user_id,type,kind,amount,reference_id,description)
-  VALUES(p_user_id,'purchase','purchase',-v_product.price,v_order_id::text,
+  INSERT INTO public.wallet_transactions(user_id,type,kind,amount,description)
+  VALUES(p_user_id,'purchase','purchase',-v_product.price,
          'Compra Central One · '||p_code);
 
   RETURN jsonb_build_object(
@@ -207,8 +207,8 @@ BEGIN
   SET balance=balance+v_order.total,updated_at=now()
   WHERE user_id=v_order.user_id;
 
-  INSERT INTO public.wallet_transactions(user_id,type,kind,amount,reference_id,description)
-  VALUES(v_order.user_id,'refund','refund',v_order.total,v_order.id::text,
+  INSERT INTO public.wallet_transactions(user_id,type,kind,amount,description)
+  VALUES(v_order.user_id,'refund','refund',v_order.total,
          'Reintegro Central One · '||v_order.code);
 
   UPDATE public.pedidos
