@@ -53,8 +53,13 @@ Deno.serve(async (req) => {
     });
     const { data: authData, error: authError } = await db.auth.getUser(token);
     if (authError || !authData.user) {
-      console.error("centralone-purchase auth validation failed:", authError?.message || "user not found");
-      return fail("No se pudo validar tu sesión. Cerrá sesión y volvé a ingresar.", 401);
+      const authReason = authError?.message || "Supabase Auth no devolvió un usuario";
+      console.error("centralone-purchase auth validation failed:", authReason);
+      return reply({
+        ok: false,
+        error: "No se pudo validar tu sesión.",
+        auth_reason: authReason,
+      }, 401);
     }
     const body = await req.json();
     const action = body?.action;
