@@ -2020,19 +2020,31 @@
  }
  $('jr-wallet-checkout')?.addEventListener('click',async()=>{
   const btn=$('jr-wallet-checkout');if(btn.disabled)return;
-  if(!Array.isArray(cart)||!cart.length){$('checkout-error').classList.remove('hidden');return;}
+  if(!Array.isArray(cart)||cart.length!==1){alert('Por ahora, la compra automática permite un solo producto por pedido. Separá los productos en compras individuales.');return;}
+  const item=cart[0],productId=String(item.id||''),quantity=Number(item.quantity||1);
+  if(!/^d[1-6]$/.test(productId)||quantity!==1){alert('La compra automática está habilitada únicamente para un paquete de diamantes Free Fire por pedido.');return;}
   if(!playerId||String(playerId).length<6||!verifiedPlayer||String(verifiedPlayer.uid)!==String(playerId)){$('checkout-error').classList.remove('hidden');return;}
-  btn.disabled=true;btn.textContent='PROCESANDO…';
+  btn.disabled=true;btn.textContent='ENVIANDO A CENTRAL ONE…';
+  const pendingKey='jr_c1_pending_'+String(playerId)+'_'+productId;
+  let code=null;
   try{
    const c=getClient();const {data:{user},error:ue}=await c.auth.getUser();if(ue)throw ue;if(!user)throw new Error('Primero iniciá sesión desde “Mi cuenta”.');
-   const code='JR-'+Array.from(crypto.getRandomValues(new Uint8Array(6))).map(v=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[v%36]).join('');
-   const products=cart.map(p=>({id:String(p.id),name:String(p.name||'Producto'),quantity:Number(p.quantity||1),price:Number(p.price||p.unitPrice||0)}));
-   const {data,error}=await c.rpc('jr_wallet_pay_order',{p_code:code,p_player_id:String(playerId),p_player_name:verifiedPlayer?.name||null,p_products:products,p_customer_phone:null});if(error)throw error;
-   try{const orders=JSON.parse(localStorage.getItem('joseRecargasOrders')||'{}');orders[code]={id:code,status:'pendiente',total:Number(data.total),createdAt:new Date().toISOString()};localStorage.setItem('joseRecargasOrders',JSON.stringify(orders));}catch(e){}
+   code=localStorage.getItem(pendingKey);
+   if(!code){code='JR-'+Array.from(crypto.getRandomValues(new Uint8Array(6))).map(v=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[v%36]).join('');localStorage.setItem(pendingKey,code);}
+   const {data,error}=await c.functions.invoke('centralone-purchase',{body:{action:'purchase',product_id:productId,player_id:String(playerId),player_name:verifiedPlayer?.name||'',code,customer_phone:null}});
+   if(error){
+    let detail='';try{const ctx=error.context;if(ctx&&typeof ctx.json==='function'){const payload=await ctx.json();detail=payload?.error||payload?.message||'';}}catch(_e){}
+    throw new Error(detail||error.message||'No se pudo confirmar la respuesta. El código se conserva para evitar una compra duplicada.');
+   }
+   if(data?.refunded){localStorage.removeItem(pendingKey);throw new Error(data.error||'Central One rechazó el pedido y el saldo fue reintegrado.');}
+   if(data?.pending){alert((data.error||'El pedido sigue pendiente de confirmación.')+'\nNo generes otra compra. Si volvés a intentar, se utilizará el mismo código: '+code+'.');return;}
+   if(!data?.ok)throw new Error(data?.error||'Central One no confirmó la compra. El código se conserva para revisar el mismo pedido.');
+   localStorage.removeItem(pendingKey);
+   try{const orders=JSON.parse(localStorage.getItem('joseRecargasOrders')||'{}');orders[code]={id:code,status:data.supplier_status||'proceso',total:Number(item.price||item.unitPrice||0),createdAt:new Date().toISOString()};localStorage.setItem('joseRecargasOrders',JSON.stringify(orders));}catch(_e){}
    const tracking=$('tracking-code');if(tracking)tracking.value=code;
-   alert('¡Compra registrada! Pedido '+code+'. Se descontaron $'+Number(data.total).toLocaleString('es-AR')+' de tu billetera. Saldo restante: $'+Number(data.new_balance).toLocaleString('es-AR')+'.');
+   alert('Pedido '+code+' enviado a Central One. Estado: '+(data.supplier_status||'en proceso')+'. No realices otra compra mientras este pedido esté en seguimiento.');
    cart=[];if(typeof updateSummary==='function')updateSummary();backToProducts();await loadWallet();
-  }catch(err){console.error('Pago con billetera:',err);alert(err.message||'No se pudo completar el pago.');}
+  }catch(err){console.error('Compra Central One:',err);alert(err.message||'No se pudo completar la compra.');}
   finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-wallet"></i>PAGAR CON MI SALDO';}
  });
  $('jr-wallet-refresh').addEventListener('click',loadWallet);
