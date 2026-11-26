@@ -182,9 +182,21 @@ Deno.serve(async (req) => {
       const providerBody = await providerResponse.json().catch(() => ({}));
       if (!providerResponse.ok || !providerBody.order?.id) {
         const providerCode = providerBody?.error?.code || providerBody?.code || "";
+        // Solo reintegrar ante códigos documentados que confirman rechazo sin crear una orden.
+        // Errores nuevos/desconocidos quedan pendientes para conciliación; nunca liberar saldo a ciegas.
+        const definitiveRejections = new Set([
+          "invalid_request",
+          "invalid_player",
+          "not_eligible",
+          "quantity_not_supported",
+          "price_changed",
+          "out_of_stock",
+          "not_found",
+          "provider_rejected",
+        ]);
         const definiteNoOrder = providerResponse.status >= 400 &&
           providerResponse.status < 500 &&
-          !["idempotency_key_reused", "rate_limited"].includes(providerCode);
+          definitiveRejections.has(providerCode);
         if (definiteNoOrder) {
           await db.rpc("jr_c1_record_supplier_result", {
             p_order_id: localOrder.id,
