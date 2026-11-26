@@ -1,37 +1,69 @@
 # Integración Central One — José Recargas
 
-Esta rama prepara la compra automática de Free Fire sin modificar `main` ni reemplazar la función existente `rapid-handler`.
+## Estado de esta rama
 
-## Archivos agregados
+La tienda cliente ya está conectada al checkout nuevo para paquetes Free Fire d1–d6. La migración SQL fue ejecutada en Supabase y el mapeo de seis productos fue confirmado por el administrador.
 
-- `supabase/migrations/202611260001_centralone_purchase_schema.sql`: agrega el mapeo de los seis paquetes de diamantes, referencias del proveedor, idempotencia y funciones protegidas para reservar y reintegrar saldo.
-- `supabase/functions/centralone-purchase/index.ts`: nueva Edge Function con acciones `validate`, `purchase` y `sync`.
+Esta rama todavía no está fusionada a `main`, y la Edge Function `centralone-purchase` todavía debe desplegarse en Supabase. No se debe habilitar el checkout público antes de completar esos dos pasos.
 
-## Importante
+## Archivos
 
-Esto todavía NO está habilitado en producción. La página de compra del cliente aún debe invocar la nueva función y conservar el mismo código de pedido al reintentar. No hagas compras reales hasta terminar esa conexión y las pruebas.
+- `supabase/migrations/202611260001_centralone_purchase_schema.sql`: columnas de mapeo, claves de idempotencia y RPCs seguras de débito/reintegro.
+- `supabase/functions/centralone-purchase/index.ts`: Edge Function con acciones `validate`, `purchase` y `sync`.
+- `public/index.html`: checkout cliente conectado a la función; permite un único paquete de diamantes por pedido.
 
-## Despliegue manual pendiente
+## Paso 1 — Desplegar primero la Edge Function
 
-1. En Supabase, abrir SQL Editor y ejecutar el archivo de migración completo.
-2. En Edge Functions, crear la función `centralone-purchase` y pegar el contenido de `index.ts`.
-3. Confirmar que estén configurados `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y `CENTRALONE_API_KEY` como secrets de la función. Nunca colocar estas claves en el frontend.
-4. La función debe conservar la verificación JWT activada.
-5. Conectar el frontend del cliente a `centralone-purchase` usando las acciones:
-   - `validate`: { action, product_id, player_id }
-   - `purchase`: { action, product_id, player_id, code, player_name, customer_phone }
-   - `sync`: { action, order_id }
+En Supabase → Edge Functions, crear una función llamada exactamente `centralone-purchase` y pegar el contenido de `supabase/functions/centralone-purchase/index.ts`.
 
-## Reglas de seguridad previstas
+Mantener activada la verificación JWT. Configurar los secretos de servidor:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CENTRALONE_API_KEY`
 
-- Solo paquetes `d1` a `d6` pueden comprarse por esta integración.
-- Se valida el ID antes de descontar saldo.
-- La reserva local y el débito del cliente ocurren en una transacción SQL.
-- El mismo código de pedido produce la misma clave de idempotencia en Central One.
-- Los errores de red ambiguos dejan el pedido pendiente; no se reintenta con otra clave ni se reintegra por timeout.
-- El reintegro solo ocurre tras consultar a Central One y confirmar el estado terminal y la liberación del dinero.
-- Esta primera versión contempla una sola línea por pedido (paquetes de diamantes). No habilitar otros productos ni cantidades múltiples.
+No colocar ninguna de estas claves en el HTML ni pedirle al cliente que las envíe. La llave de Central One debe tener, como mínimo, los alcances `catalog:read`, `orders:write` y `orders:read`. `player/validate` usa `catalog:read`.
 
-## Estado
+## Paso 2 — Comprobación sin gastar saldo
 
-Preparación en rama separada. No desplegado, no fusionado a `main`, sin compras ejecutadas.
+Antes de publicar el checkout, probar únicamente la acción `validate` con un ID real de Free Fire:
+
+```json
+{
+  "action": "validate",
+  "product_id": "d3",
+  "player_id": "ID_REAL_DEL_JUGADOR"
+}
+```
+
+La respuesta debe ser `ok: true` y `status: "valid"`. `invalid` significa que el ID no corresponde; `unverified` significa que Central One no pudo comprobarlo y esta integración bloquea la compra por seguridad. Esta validación no crea pedidos ni mueve saldo.
+
+No probar la acción `purchase` con datos ficticios: Central One no ofrece un entorno de pruebas con saldo ficticio y cada pedido real mueve saldo.
+
+## Paso 3 — Publicar el checkout
+
+Cuando la función esté desplegada y la validación responda correctamente, abrir el Pull Request de esta rama hacia `main` y fusionarlo. Vercel publicará el checkout actualizado desde `main`.
+
+## Comportamiento de compra
+
+- Solo se admiten productos `d1` a `d6`, una unidad por pedido.
+- El servidor valida el ID antes de descontar el saldo del cliente.
+- La reserva local y el débito de la billetera del cliente se hacen en una única transacción SQL.
+- Cada intento tiene un código persistente. Reintentar el mismo pedido usa la misma clave de idempotencia; nunca crea una segunda orden.
+- Si Central One confirma el pedido, se conserva el código mientras esté en proceso. Al volver a consultar con el mismo código, la función sincroniza el estado de la orden existente.
+- Los errores de red o desconocidos quedan pendientes; no se reintegra ni se crea otra orden a ciegas.
+- El reintegro al cliente solo se hace cuando Central One informa que el dinero fue devuelto y la orden/línea está en estado terminal.
+- No se muestra el costo mayorista al cliente.
+- Esta primera versión no habilita otros productos, cantidades múltiples ni pedidos con varias líneas.
+
+## Seguimiento
+
+La acción `sync` recibe `{ "action": "sync", "order_id": ID_LOCAL }` y consulta `GET /orders/{id}`. La acción `purchase` con el mismo código también vuelve a consultar una orden que ya existe, en lugar de crear otra.
+
+## No hacer
+
+- No sobrescribir la Edge Function existente `rapid-handler`.
+- No desactivar JWT.
+- No compartir ni pegar claves en el chat.
+- No fusionar el checkout a producción antes de desplegar y validar la Edge Function.
+- No lanzar compras de prueba: cualquier `purchase` crea un pedido de saldo real.
