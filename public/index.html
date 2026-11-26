@@ -2039,10 +2039,12 @@
    if(data?.refunded){localStorage.removeItem(pendingKey);throw new Error(data.error||'Central One rechazó el pedido y el saldo fue reintegrado.');}
    if(data?.pending){alert((data.error||'El pedido sigue pendiente de confirmación.')+'\nNo generes otra compra. Si volvés a intentar, se utilizará el mismo código: '+code+'.');return;}
    if(!data?.ok)throw new Error(data?.error||'Central One no confirmó la compra. El código se conserva para revisar el mismo pedido.');
-   localStorage.removeItem(pendingKey);
-   try{const orders=JSON.parse(localStorage.getItem('joseRecargasOrders')||'{}');orders[code]={id:code,status:data.supplier_status||'proceso',total:Number(item.price||item.unitPrice||0),createdAt:new Date().toISOString()};localStorage.setItem('joseRecargasOrders',JSON.stringify(orders));}catch(_e){}
+   const finalStatus=String(data.supplier_status||'').toLowerCase();
+   if(finalStatus==='completed'){localStorage.removeItem(pendingKey);localStorage.removeItem(pendingKey+'_order');}
+   else{localStorage.setItem(pendingKey,code);if(data.order_id)localStorage.setItem(pendingKey+'_order',String(data.order_id));}
+   try{const orders=JSON.parse(localStorage.getItem('joseRecargasOrders')||'{}');orders[code]={id:code,status:finalStatus==='completed'?'entregado':'proceso',total:Number(item.price||item.unitPrice||0),createdAt:new Date().toISOString(),centralone_order_id:data.order_id||null};localStorage.setItem('joseRecargasOrders',JSON.stringify(orders));}catch(_e){}
    const tracking=$('tracking-code');if(tracking)tracking.value=code;
-   alert('Pedido '+code+' enviado a Central One. Estado: '+(data.supplier_status||'en proceso')+'. No realices otra compra mientras este pedido esté en seguimiento.');
+   alert(finalStatus==='completed'?'¡Recarga completada! Pedido '+code+'.':'Pedido '+code+' enviado a Central One. Estado: '+(data.supplier_status||'en proceso')+'. El código queda guardado para consultar este mismo pedido; no se creará otra compra.');
    cart=[];if(typeof updateSummary==='function')updateSummary();backToProducts();await loadWallet();
   }catch(err){console.error('Compra Central One:',err);alert(err.message||'No se pudo completar la compra.');}
   finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-wallet"></i>PAGAR CON MI SALDO';}
