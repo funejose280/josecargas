@@ -1,7 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("JR_SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CENTRALONE_API_KEY = Deno.env.get("CENTRALONE_API_KEY");
 const CENTRALONE_BASE = "https://portal.centraloneglobal.com/api/v1";
@@ -46,16 +45,17 @@ Deno.serve(async (req) => {
     const token = authHeader.replace(/^Bearer\s+/i, "");
     if (!token) return fail("Iniciá sesión para continuar", 401);
 
-    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: authData, error: authError } = await authClient.auth.getUser(token);
-    if (authError || !authData.user) return fail("Sesión inválida o vencida", 401);
-
+    // Validate the caller's access token against this project's Auth API.
+    // Use the server-side service-role API key for the apikey header; the user's
+    // access token remains the Bearer credential being verified.
     const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    const { data: authData, error: authError } = await db.auth.getUser(token);
+    if (authError || !authData.user) {
+      console.error("centralone-purchase auth validation failed:", authError?.message || "user not found");
+      return fail("No se pudo validar tu sesión. Cerrá sesión y volvé a ingresar.", 401);
+    }
     const body = await req.json();
     const action = body?.action;
     const userId = authData.user.id;
